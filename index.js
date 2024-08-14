@@ -1,64 +1,81 @@
 import readline from "readline";
 
-let width = process.stdout.columns;
-let height = process.stdout.rows;
-let dx = 0;
-let dy = 0;
+const { stdin, stdout } = process;
+
+let width = stdout.columns;
+let height = stdout.rows;
+
+const write = (str) => stdout.write(str);
+const esc = (str) => write("\x1b[" + str);
+
+const init = () => {
+    esc("48;5;0m"); // bg black
+    esc("2J"); // clear screen
+    esc("?25l"); // hide cursor
+};
 
 const exit = () => {
-    console.log("\x1b[38;5;1m\x1b[48;5;0m"); // reset fg/bg
-    console.log("\x1b[?25h"); // show cursor
+    esc("?25h"); // show cursor
+    esc("37m"); // fg to white
+    esc("48;5;0m"); // bg to black
+    console.log("\nbye.");
     process.exit();
 };
 
+process.on("SIGINT", exit);
 process.on("SIGWINCH", () => {
-    console.log("\x1b[38;5;1m\x1b[48;5;0m"); // reset fg/bg
-    console.log("\x1b[2J"); // clear screen
-    width = process.stdout.columns;
-    height = process.stdout.rows;
+    init();
+    width = stdout.columns;
+    height = stdout.rows;
 });
 
-readline.emitKeypressEvents(process.stdin);
-if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
+readline.emitKeypressEvents(stdin);
+if (stdin.isTTY) {
+    stdin.setRawMode(true);
 }
 
-process.stdin.on("keypress", (chunk, key) => {
-    if (!key) {
-        return;
-    }
+let dx = 0;
+let dy = 0;
+
+stdin.on("keypress", (chunk, key) => {
+    if (!key) return;
     if (key.name == "escape" || key.name == "q") {
         exit();
     }
+    dx = 0;
+    dy = 0;
     if (key.name == "a" || key.name == "left") dx = -1;
     if (key.name == "d" || key.name == "right") dx = 1;
     if (key.name == "w" || key.name == "up") dy = -1;
     if (key.name == "s" || key.name == "down") dy = 1;
 });
 
-process.on("SIGINT", () => {
-    exit();
-});
+// ======================
 
-console.log("\x1b[2J"); // clear screen
-console.log("\x1b[?25l"); // hide cursor
+init();
 
 let x = (width / 2) | 0;
 let y = (height / 2) | 0;
 let t = 0;
+
 setInterval(() => {
+    // Update
+    t += 0.5;
+
     x += dx;
     if (x < 0) x = width;
     if (x > width) x = 0;
 
     y += dy;
-    if (y < 0) y = height - 1;
-    if (y >= height) y = 0;
+    if (y < 0) y = height;
+    if (y > height) y = 0;
 
-    const ch = " "; // Math.random() < 0.5 ? "\\" : "/";
-    const col = t % 255;
-    dx = 0;
-    dy = 0;
-    console.log(`\x1b[${y};${x}H\x1b[38;5;0m\x1b[48;5;${col}m${ch}`);
-    t++;
-}, 10);
+    // Render
+    const ch = " ";
+    const col = (t | 0) % 255;
+
+    esc(`${y};${x}H`); // cursor pos
+    esc("38;5;0m"); // fg
+    esc(`48;5;${col}m`); // bg
+    write(ch);
+}, 1000 / 30);
