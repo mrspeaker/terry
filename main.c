@@ -1,10 +1,9 @@
-#include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <termios.h>
+#include <unistd.h>
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -17,39 +16,27 @@ struct winsize win;
 int stdoutid = STDOUT_FILENO;
 unsigned long twinsz = TIOCGWINSZ;
 
-void nonblock(int enable) {
+void init_tty(int enable) {
     struct termios ttystate;
-    tcgetattr(STDIN_FILENO, &ttystate); // save current state
+    tcgetattr(STDIN_FILENO, &ttystate); // current state
     if (enable) {
-        ttystate.c_lflag &= ~ICANON; // cannonical
-        ttystate.c_cc[VMIN] = 1; // minimum of number input read.
+        // non-canonical mode:
+        //   https://www.gnu.org/software/libc/manual/html_node/Noncanonical-Input.html
+        ttystate.c_lflag &= ~ICANON; // non-cannonical
+        ttystate.c_lflag &= ~ECHO;   // no echo
+        ttystate.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
     }  else {
         ttystate.c_lflag |= ICANON;
+        ttystate.c_lflag |= ECHO;
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
 }
 
-void init() {
-    system("stty -echo"); //don't echo
-    nonblock(1);
-    esc("48;5;0m"); // bg black
-    esc("2J"); // clear screen
-    esc("?25l"); // hide cursor
-}
-
-void done(int signum) {
-    esc("?25h"); // show cursor
-    esc("37m"); // fg to white
-    esc("48;5;0m"); // bg to black
-
-    system("stty echo"); //turn on screen echo again
-    nonblock(0);
-
-    printf("\nbye\n");
-
-    exit(signum);
-};
-
+// Simulates kbhit: wait 0 time for input
+//
+// select() allows a program to monitor multiple file descriptors,
+// waiting until one or more of the file descriptors become "ready".
+// Non blocking.
 int kbhit() {
     struct timeval tv;
     fd_set fds;
@@ -60,6 +47,23 @@ int kbhit() {
     select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
     return FD_ISSET(STDIN_FILENO, &fds);
 }
+
+void init() {
+    init_tty(1);
+    esc("48;5;0m"); // bg black
+    esc("2J"); // clear screen
+    esc("?25l"); // hide cursor
+}
+
+void done(int signum) {
+    init_tty(0);
+    esc("?25h"); // show cursor
+    esc("37m"); // fg to white
+    esc("48;5;0m"); // bg to black
+
+    printf("\nbye\n");
+    exit(signum);
+};
 
 void resize() {
     init();
