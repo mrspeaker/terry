@@ -57,6 +57,12 @@ void cursor_to(char x, char y) {
 void set_bg(unsigned char col) {
     printf("\e[48;5;%dm", col);
 }
+
+// seems like it works in alacritty, but not in mac term.
+void set_bg_rgb(unsigned char r, unsigned char g, unsigned char b) {
+    printf("\e[48;2;%d;%d;%dm", r, g, b);
+}
+
 void set_fg(unsigned char col) {
     printf("\e[38;5;%dm", col);
 }
@@ -68,9 +74,20 @@ void cls() {
 }
 
 void init() {
-    //    cls();
     init_tty(1);
     esc("?25l"); // hide cursor
+}
+
+void bg_fill() {
+    for (int j = 0; j <= h; j++) {
+        for (int i = 0; i <= w; i++) {
+            cursor_to(i, j);
+            set_bg((j + i) % 10 + 232);
+            printf(" ");
+        }
+    }
+    cursor_to(w / 2 - 10, h / 2);
+    printf("hello, W A S D");
 }
 
 void done(int signum) {
@@ -88,7 +105,7 @@ void resize() {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &win);
     w = win.ws_col;
     h = win.ws_row;
-    cls();
+    bg_fill();
 }
 
 int main() {
@@ -103,25 +120,10 @@ int main() {
     char dx = 0;
     char dy = 0;
 
-
     unsigned int t = 0;
 
     char ch;
     int running = 1;
-
-    cursor_to(w / 2 - 10, h / 2);
-    printf("hello, world");
-
-    int oo = 0;
-    for (int j = 0; j <= h; j++) {
-        for (int i = 0; i <= w; i++) {
-            cursor_to(i,j);
-            set_bg((oo + i) % 10 + 232);
-            printf(" ");
-        }
-        oo++;
-    }
-
 
     while(running){
         // Input
@@ -134,8 +136,8 @@ int main() {
 
             if (ch == 'w') dy = -1;
             if (ch == 's') dy = 1;
-            if (ch == 'd') dx = 1;
             if (ch == 'a') dx = -1;
+            if (ch == 'd') dx = 1;
         }
 
         // Update
