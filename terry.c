@@ -87,7 +87,7 @@ void cls() {
 void init_grid() {
     for (unsigned char j = 0; j < ROWS; j++) {
         for (unsigned char i = 0; i < COLS; i++) {
-            grid[j][i] = (rand() % 4);
+            grid[j][i] = (i+j) % 20;// (rand() % 20);
         }
     }
 }
@@ -103,8 +103,8 @@ void render_grid() {
     set_fg(2);
     for (unsigned char j = 0; j < ROWS; j+=2) {
         for (unsigned char i = 0; i < COLS; i++) {
-            unsigned char top = grid[j][i];
-            unsigned char bottom = grid[j + 1][i];
+            unsigned char top = grid[j][i] + 232;
+            unsigned char bottom = grid[j + 1][i] + 232;
 
             cursor_to(i, j/2);
 
@@ -116,6 +116,14 @@ void render_grid() {
                 continue;
             }
             printf("▀"); // printf("▄");
+        }
+    }
+}
+
+void update_grid() {
+    for (unsigned char j = 0; j < ROWS; j++) {
+        for (unsigned char i = 0; i < COLS; i++) {
+            grid[j][i] = (grid[j][i] + 1) % 20;
         }
     }
 }
@@ -132,6 +140,7 @@ void bg_fill() {
     render_grid();
 
     cursor_to(w / 2 - 10, h / 2);
+    set_bg(0);
     set_fg(250);
     printf("hello, W A S D");
 }
@@ -139,7 +148,6 @@ void bg_fill() {
 void done(int signum) {
     init_tty(0);
     esc("?25h"); // show cursor
-
     esc("0m"); // reset fg/bg
 
     printf("\nbye\n");
@@ -191,6 +199,7 @@ int main() {
 
         // Update
         t++;
+        update_grid();
 
         x += dx;
         if (x < 0) x = w;
@@ -201,6 +210,8 @@ int main() {
         if (y > h) y = 0;
 
         // Render
+        render_grid();
+
         cursor_to(x, y);
         set_bg(t % 255);
         set_fg((t + 1) % 255);
