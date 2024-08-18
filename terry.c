@@ -4,14 +4,20 @@
 #include <stdlib.h>
 #include <termios.h>
 #include <unistd.h>
+#include <time.h>
 
 #define C_BLACK 0
 #define C_WHITE 15
 #define delay 1000000 / 30
 
+#define COLS 40
+#define ROWS 40
+
 unsigned char w = 0;
 unsigned char h = 0;
 struct winsize win;
+
+unsigned char grid[ROWS][COLS] = {0};
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -78,9 +84,40 @@ void cls() {
     esc("2J"); // clear screen
 }
 
+void init_grid() {
+    for (unsigned char j = 0; j < ROWS; j++) {
+        for (unsigned char i = 0; i < COLS; i++) {
+            grid[j][i] = (rand() % 4);
+        }
+    }
+}
+
 void init() {
     init_tty(1);
     esc("?25l"); // hide cursor
+
+    init_grid();
+}
+
+void render_grid() {
+    set_fg(2);
+    for (unsigned char j = 0; j < ROWS; j+=2) {
+        for (unsigned char i = 0; i < COLS; i++) {
+            unsigned char top = grid[j][i];
+            unsigned char bottom = grid[j + 1][i];
+
+            cursor_to(i, j/2);
+
+            set_fg(top);
+            set_bg(bottom);
+
+            if (top == bottom) {
+                printf(" ");
+                continue;
+            }
+            printf("▀"); // printf("▄");
+        }
+    }
 }
 
 void bg_fill() {
@@ -91,6 +128,9 @@ void bg_fill() {
             printf(" ");
         }
     }
+
+    render_grid();
+
     cursor_to(w / 2 - 10, h / 2);
     set_fg(250);
     printf("hello, W A S D");
@@ -114,12 +154,15 @@ void resize() {
 }
 
 int main() {
+
+    srand(time(0));
+
     signal(SIGINT, done);
     signal(SIGWINCH, resize);
 
     cls();
-    resize();
     init();
+    resize();
 
     char x = w / 2;
     char y = h / 2;
