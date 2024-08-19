@@ -87,7 +87,7 @@ void cls() {
 void init_grid() {
     for (unsigned char j = 0; j < ROWS; j++) {
         for (unsigned char i = 0; i < COLS; i++) {
-            grid[j][i] = (i+j) % 20;// (rand() % 20);
+            grid[j][i] = rand() % 20; //(i+j) % 20;// (rand() % 20);
         }
     }
 }
@@ -100,13 +100,15 @@ void init() {
 }
 
 void render_grid() {
-    set_fg(2);
     for (unsigned char j = 0; j < ROWS; j+=2) {
+        cursor_to(w / 2 - 20, h / 2 - 8 + j/2);
         for (unsigned char i = 0; i < COLS; i++) {
-            unsigned char top = grid[j][i] + 232;
-            unsigned char bottom = grid[j + 1][i] + 232;
+            unsigned char top = grid[j][i];
+            unsigned char bottom = grid[j + 1][i];
 
-            cursor_to(i, j/2);
+            // Filter out a bunch o colors
+            if (top < 16 || top > 51) top = 16;
+            if (bottom < 16 || bottom  > 51) bottom = 16;
 
             set_fg(top);
             set_bg(bottom);
@@ -115,34 +117,58 @@ void render_grid() {
                 printf(" ");
                 continue;
             }
-            printf("▀"); // printf("▄");
+            printf("\u2580"); // Upper Half Block "▀"
         }
     }
+}
+
+unsigned char get_cell(unsigned char x, unsigned char y) {
+    if (y >= ROWS || y < 0) return 0;
+    if (x >= COLS || x < 0) return 0;
+    return grid[y][x];
 }
 
 void update_grid() {
     for (unsigned char j = 0; j < ROWS; j++) {
         for (unsigned char i = 0; i < COLS; i++) {
-            grid[j][i] = (grid[j][i] + 1) % 20;
+            grid[j][i] =
+                (get_cell(i - 1, j + 1) +
+                get_cell(i, j + 1) +
+                get_cell(i + 1, j + 1) +
+                get_cell(i, j + 2)) / 4;
         }
     }
+    for (unsigned char i = 0; i < COLS; i++) {
+        grid[ROWS - 1][i] = (rand() % 65);// + 16;
+    }
+}
+
+void render_text(int t) {
+    set_bg(0);
+
+    int tt = t / 5;
+    set_fg(tt);
+    cursor_to(w/2-7, h/2+2);
+    printf("Mr");
+
+    set_fg(tt-1);
+    cursor_to(w/2-4, h/2+2);
+    printf("Speaker");
+
+    set_fg(tt-2);
+    cursor_to(w/2+4, h/2+2);
+    printf("2024");
+    
 }
 
 void bg_fill() {
     for (int j = 0; j <= h; j++) {
         for (int i = 0; i <= w; i++) {
             cursor_to(i, j);
-            set_bg((j / 1) % 10 + 232);
+            set_bg(16);//(j / 1) % 10 + 232);
             printf(" ");
         }
     }
-
-    render_grid();
-
-    cursor_to(w / 2 - 10, h / 2);
-    set_bg(0);
-    set_fg(250);
-    printf("hello, W A S D");
 }
 
 void done(int signum) {
@@ -150,7 +176,7 @@ void done(int signum) {
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
 
-    printf("\nbye\n");
+    printf("\n\n\nbye\n");
     exit(signum);
 };
 
@@ -175,7 +201,7 @@ int main() {
     char x = w / 2;
     char y = h / 2;
     char dx = 0;
-    char dy = 0;
+    char dy = -1;
 
     unsigned int t = 0;
 
@@ -201,6 +227,17 @@ int main() {
         t++;
         update_grid();
 
+        int r = rand() % 100;
+        if (r < 4) {
+            dx = 0;
+            dy = 0;
+            r = rand() % 4;
+            if (r == 0) dx = -1;
+            if (r == 1) dx = 1;
+            if (r == 2) dy = -1;
+            if (r == 3) dy = 1;
+        }
+
         x += dx;
         if (x < 0) x = w;
         if (x > w) x = 0;
@@ -211,10 +248,11 @@ int main() {
 
         // Render
         render_grid();
+        render_text(t);
 
         cursor_to(x, y);
-        set_bg(t % 255);
-        set_fg((t + 1) % 255);
+        set_bg((t % (255 - 16))+16);
+        set_fg(((t + 1) % (255 - 16))+16);
         two_px_test();
 
         fflush(stdout);
