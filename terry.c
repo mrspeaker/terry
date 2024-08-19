@@ -19,25 +19,21 @@ struct winsize win;
 
 unsigned char grid[ROWS][COLS] = {0};
 
-void esc(char* str) {
-    printf("\e[%s", str);
-}
-
 // Set/restore non-canonical and no-echo in tty
 void init_tty(int enable) {
-    struct termios ttystate;
-    tcgetattr(STDIN_FILENO, &ttystate); // current state
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &tty); // current state
     if (enable) {
         // non-canonical mode:
         //   https://www.gnu.org/software/libc/manual/html_node/Noncanonical-Input.html
-        ttystate.c_lflag &= ~ICANON; // non-cannonical
-        ttystate.c_lflag &= ~ECHO;   // no echo
-        ttystate.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
+        tty.c_lflag &= ~ICANON; // non-cannonical
+        tty.c_lflag &= ~ECHO;   // no echo
+        tty.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
     }  else {
-        ttystate.c_lflag |= ICANON;
-        ttystate.c_lflag |= ECHO;
+        tty.c_lflag |= ICANON;
+        tty.c_lflag |= ECHO;
     }
-    tcsetattr(STDIN_FILENO, TCSANOW, &ttystate);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
 }
 
 // Simulates kbhit
@@ -54,6 +50,10 @@ int kbhit() {
     FD_SET(STDIN_FILENO, &fds);
     select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
     return FD_ISSET(STDIN_FILENO, &fds);
+}
+
+void esc(char* str) {
+    printf("\e[%s", str);
 }
 
 void cursor_to(char x, char y) {
@@ -87,7 +87,7 @@ void cls() {
 void init_grid() {
     for (unsigned char j = 0; j < ROWS; j++) {
         for (unsigned char i = 0; i < COLS; i++) {
-            grid[j][i] = rand() % 20; //(i+j) % 20;// (rand() % 20);
+            grid[j][i] = rand() % 20;
         }
     }
 }
@@ -95,12 +95,13 @@ void init_grid() {
 void init() {
     init_tty(1);
     esc("?25l"); // hide cursor
-
     init_grid();
 }
 
 void render_grid() {
-    for (unsigned char j = 0; j < ROWS; j+=2) {
+    // TODO: instead of default green -> blue -> black, make it go:
+    //  white -> yellow -> red -> blue -> black for real fire-y look.
+    for (unsigned char j = 0; j < ROWS-2; j+=2) {
         cursor_to(w / 2 - 20, h / 2 - 8 + j/2);
         for (unsigned char i = 0; i < COLS; i++) {
             unsigned char top = grid[j][i];
@@ -139,7 +140,7 @@ void update_grid() {
         }
     }
     for (unsigned char i = 0; i < COLS; i++) {
-        grid[ROWS - 1][i] = (rand() % 65);// + 16;
+        grid[ROWS - 1][i] = rand() % 65;
     }
 }
 
@@ -227,6 +228,7 @@ int main() {
         t++;
         update_grid();
 
+        // Cursor direction
         int r = rand() % 100;
         if (r < 4) {
             dx = 0;
@@ -238,6 +240,7 @@ int main() {
             if (r == 3) dy = 1;
         }
 
+        // Update cursor
         x += dx;
         if (x < 0) x = w;
         if (x > w) x = 0;
