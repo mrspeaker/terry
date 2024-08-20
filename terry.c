@@ -26,9 +26,7 @@ void init_tty(bool enable) {
     struct termios tty;
     tcgetattr(STDIN_FILENO, &tty); // current state
     if (enable) {
-        // non-canonical mode:
-        //   https://www.gnu.org/software/libc/manual/html_node/Noncanonical-Input.html
-        tty.c_lflag &= ~ICANON; // non-cannonical
+        tty.c_lflag &= ~ICANON; // non-canonical (raw)
         tty.c_lflag &= ~ECHO;   // no echo
         tty.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
     }  else {
@@ -100,6 +98,12 @@ void init() {
     init_grid();
 }
 
+#define FIRE_PAL 15
+
+uint8_t pal[FIRE_PAL] = {
+    16, 17, 18, 19, 54, 89, 90, 124,
+    160, 196, 208, 215,216, 223, 231};
+
 void render_grid() {
     // TODO: instead of default green -> blue -> black, make it go:
     //  white -> yellow -> red -> blue -> black for real fire-y look.
@@ -152,20 +156,19 @@ void update_grid() {
 
 void render_text(int t) {
     set_bg(C_BLACK);
+    uint32_t col = t / 5;
 
-    uint32_t tt = t / 5;
-    set_fg(tt);
+    set_fg(col);
     cursor_to(w/2-7, h/2+2);
     printf("Mr");
 
-    set_fg(tt-1);
+    set_fg(col - 1);
     cursor_to(w/2-4, h/2+2);
     printf("Speaker");
 
-    set_fg(tt-2);
+    set_fg(col - 2);
     cursor_to(w/2+4, h/2+2);
     printf("2024");
-    
 }
 
 void bg_fill() {
@@ -173,7 +176,7 @@ void bg_fill() {
     for (int j = 0; j <= h; j++) {
         for (int i = 0; i <= w; i++) {
             cursor_to(i, j);
-            if (rand() % 40 == 0) {
+            if (rand() % 30 == 0) {
                 // Star
                 set_fg((rand() % 20) + 232);
                 printf(".");
@@ -190,7 +193,7 @@ void done(int signum) {
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
 
-    printf("\n\n\nbye\n");
+    cursor_to(0, 0);
     exit(signum);
 };
 
@@ -265,8 +268,8 @@ int main() {
         render_text(t);
 
         cursor_to(x, y);
-        set_bg((t % (255 - 16))+16);
-        set_fg(((t + 1) % (255 - 16))+16);
+        set_bg((t % (255 - 51))+51);
+        set_fg(((t + 1) % (255 - 51))+51);
         print_half_block();
 
         fflush(stdout);
