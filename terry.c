@@ -11,7 +11,7 @@
 #define COLS 40
 #define ROWS 40
 
-#define C_BLACK 0
+#define C_BLACK 16
 #define C_WHITE 15
 #define delay 1000000 / 30
 
@@ -110,8 +110,8 @@ void render_grid() {
             uint8_t bottom = grid[j + 1][i];
 
             // Filter out a bunch o colors. (Gradient is indexes 16-51)
-            if (top < 16 || top > 51) top = 16;
-            if (bottom < 16 || bottom  > 51) bottom = 16;
+            if (top < 16 || top > 51) top = C_BLACK;
+            if (bottom < 16 || bottom  > 51) bottom = C_BLACK;
 
             set_fg(top);
             set_bg(bottom);
@@ -169,11 +169,18 @@ void render_text(int t) {
 }
 
 void bg_fill() {
+    set_bg(C_BLACK);
     for (int j = 0; j <= h; j++) {
         for (int i = 0; i <= w; i++) {
             cursor_to(i, j);
-            set_bg(16);//(j / 1) % 10 + 232);
-            printf(" ");
+            if (rand() % 40 == 0) {
+                // Star
+                set_fg((rand() % 20) + 232);
+                printf(".");
+            } else {
+                // Empty
+                printf(" ");
+            }
         }
     }
 }
