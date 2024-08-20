@@ -1,26 +1,28 @@
 #include <sys/ioctl.h>
 #include <signal.h>
-#include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <termios.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
+
+#define COLS 40
+#define ROWS 40
 
 #define C_BLACK 0
 #define C_WHITE 15
 #define delay 1000000 / 30
 
-#define COLS 40
-#define ROWS 40
-
-unsigned char w = 0;
-unsigned char h = 0;
+uint16_t w = 0;
+uint16_t h = 0;
 struct winsize win;
 
-unsigned char grid[ROWS][COLS] = {0};
+uint8_t grid[ROWS][COLS] = {0};
 
 // Set/restore non-canonical and no-echo in tty
-void init_tty(int enable) {
+void init_tty(bool enable) {
     struct termios tty;
     tcgetattr(STDIN_FILENO, &tty); // current state
     if (enable) {
@@ -41,7 +43,7 @@ void init_tty(int enable) {
 // select() allows a program to monitor multiple file descriptors,
 // waiting until one or more of the file descriptors become "ready".
 // Non blocking.
-int kbhit() {
+bool kbhit() {
     struct timeval tv;
     fd_set fds;
     tv.tv_sec = 0; // wait 0 time
@@ -49,33 +51,28 @@ int kbhit() {
     FD_ZERO(&fds);
     FD_SET(STDIN_FILENO, &fds);
     select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
-    return FD_ISSET(STDIN_FILENO, &fds);
+    return FD_ISSET(STDIN_FILENO, &fds) != 0;
 }
 
 void esc(char* str) {
     printf("\e[%s", str);
 }
 
-void cursor_to(char x, char y) {
+void cursor_to(uint16_t x, uint16_t y) {
     printf("\e[%d;%dH", y, x);
 }
 
-void set_bg(unsigned char col) {
+void set_bg(uint8_t col) {
     printf("\e[48;5;%dm", col);
 }
 
-// only on terminals with 24bit color support
-void set_bg_rgb(unsigned char r, unsigned char g, unsigned char b) {
-    printf("\e[48;2;%d;%d;%dm", r, g, b);
-}
-
-void set_fg(unsigned char col) {
+void set_fg(uint8_t col) {
     printf("\e[38;5;%dm", col);
 }
 
-// Use the half-block char to make squarer, double res pixels
-void two_px_test() {
-    printf("▀"); // ▄
+// only on terminals with 24bit color support
+void set_bg_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    printf("\e[48;2;%d;%d;%dm", r, g, b);
 }
 
 void cls() {
@@ -84,16 +81,21 @@ void cls() {
     esc("2J"); // clear screen
 }
 
+// Use the half-block char to make squarer, double res pixels
+void print_half_block() {
+    printf("\u2580"); // Upper Half Block "▀"
+}
+
 void init_grid() {
-    for (unsigned char j = 0; j < ROWS; j++) {
-        for (unsigned char i = 0; i < COLS; i++) {
+    for (uint8_t j = 0; j < ROWS; j++) {
+        for (uint8_t i = 0; i < COLS; i++) {
             grid[j][i] = rand() % 20;
         }
     }
 }
 
 void init() {
-    init_tty(1);
+    init_tty(true);
     esc("?25l"); // hide cursor
     init_grid();
 }
@@ -101,13 +103,13 @@ void init() {
 void render_grid() {
     // TODO: instead of default green -> blue -> black, make it go:
     //  white -> yellow -> red -> blue -> black for real fire-y look.
-    for (unsigned char j = 0; j < ROWS-2; j+=2) {
-        cursor_to(w / 2 - 20, h / 2 - 8 + j/2);
-        for (unsigned char i = 0; i < COLS; i++) {
-            unsigned char top = grid[j][i];
-            unsigned char bottom = grid[j + 1][i];
+    for (uint8_t j = 0; j < ROWS - 2; j+=2) {
+        cursor_to(w / 2 - 20, h / 2 - 8 + j / 2);
+        for (uint8_t i = 0; i < COLS; i++) {
+            uint8_t top = grid[j][i];
+            uint8_t bottom = grid[j + 1][i];
 
-            // Filter out a bunch o colors
+            // Filter out a bunch o colors. (Gradient is indexes 16-51)
             if (top < 16 || top > 51) top = 16;
             if (bottom < 16 || bottom  > 51) bottom = 16;
 
@@ -118,20 +120,24 @@ void render_grid() {
                 printf(" ");
                 continue;
             }
-            printf("\u2580"); // Upper Half Block "▀"
+            print_half_block();
         }
     }
 }
 
-unsigned char get_cell(unsigned char x, unsigned char y) {
+uint8_t get_cell(uint8_t x, uint8_t y) {
     if (y >= ROWS || y < 0) return 0;
     if (x >= COLS || x < 0) return 0;
     return grid[y][x];
 }
 
 void update_grid() {
-    for (unsigned char j = 0; j < ROWS; j++) {
-        for (unsigned char i = 0; i < COLS; i++) {
+    for (uint8_t j = 0; j < ROWS; j++) {
+        for (uint8_t i = 0; i < COLS; i++) {
+            // Average 4 pixels to do the fire effect
+            //   *    <- for each pixel,
+            //  123      avg the pixels underneath.
+            //   4
             grid[j][i] =
                 (get_cell(i - 1, j + 1) +
                 get_cell(i, j + 1) +
@@ -139,15 +145,15 @@ void update_grid() {
                 get_cell(i, j + 2)) / 4;
         }
     }
-    for (unsigned char i = 0; i < COLS; i++) {
+    for (uint8_t i = 0; i < COLS; i++) {
         grid[ROWS - 1][i] = rand() % 65;
     }
 }
 
 void render_text(int t) {
-    set_bg(0);
+    set_bg(C_BLACK);
 
-    int tt = t / 5;
+    uint32_t tt = t / 5;
     set_fg(tt);
     cursor_to(w/2-7, h/2+2);
     printf("Mr");
@@ -173,7 +179,7 @@ void bg_fill() {
 }
 
 void done(int signum) {
-    init_tty(0);
+    init_tty(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
 
@@ -189,7 +195,6 @@ void resize() {
 }
 
 int main() {
-
     srand(time(0));
 
     signal(SIGINT, done);
@@ -199,29 +204,28 @@ int main() {
     init();
     resize();
 
-    char x = w / 2;
-    char y = h / 2;
-    char dx = 0;
-    char dy = -1;
+    int16_t x = w / 2;
+    int16_t y = h / 2;
+    int8_t dx = 0;
+    int8_t dy = -1;
 
-    unsigned int t = 0;
+    uint32_t t = 0;
+    char key;
 
-    char ch;
-    int running = 1;
-
+    bool running = true;
     while(running){
         // Input
         if (kbhit()) {
             dx = 0; // stop moving
             dy = 0;
-            ch = fgetc(stdin);
+            key = fgetc(stdin);
 
-            if (ch == 'q') running = 0; // quit
+            if (key == 'q') running = false; // quit
 
-            if (ch == 'w') dy = -1;
-            if (ch == 's') dy = 1;
-            if (ch == 'a') dx = -1;
-            if (ch == 'd') dx = 1;
+            if (key == 'w') dy = -1;
+            if (key == 's') dy = 1;
+            if (key == 'a') dx = -1;
+            if (key == 'd') dx = 1;
         }
 
         // Update
@@ -229,7 +233,7 @@ int main() {
         update_grid();
 
         // Cursor direction
-        int r = rand() % 100;
+        uint32_t r = rand() % 100;
         if (r < 4) {
             dx = 0;
             dy = 0;
@@ -256,7 +260,7 @@ int main() {
         cursor_to(x, y);
         set_bg((t % (255 - 16))+16);
         set_fg(((t + 1) % (255 - 16))+16);
-        two_px_test();
+        print_half_block();
 
         fflush(stdout);
         usleep(delay);
