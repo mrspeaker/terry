@@ -1,5 +1,8 @@
-CC = gcc
-CFLAGS = -O2
-terry:
+.PHONY: all
+all: terry demo
 
-blit_1:
+CC = gcc
+CFLAGS = -Wall -O2
+
+%: %.c
+	gcc -o $@ $<
