@@ -236,6 +236,21 @@ int main() {
             if (key == 's') dy = 1;
             if (key == 'a') dx = -1;
             if (key == 'd') dx = 1;
+
+            // Check for escape code sequences
+            if (key == '\x1b') {
+                key = fgetc(stdin); // '['
+                key = fgetc(stdin);
+                if (key == 27) running = false; // esc
+                if (key == 'A') dy = -1; // up arrow
+                if (key == 'B') dy = 1; // down arrow
+                if (key == 'C') dx = 1; // right arrow
+                if (key == 'D') dx = -1; // left arrow
+                cursor_to(0, 0);
+                set_bg(C_BLACK);
+                set_fg(C_WHITE);
+                printf("%d", key);
+            }
         }
 
         // Update
