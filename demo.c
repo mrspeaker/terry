@@ -132,7 +132,7 @@ void bg_fill() {
 
     // Bottom row
     set_fg(21);
-    cursor_to(w / 2 - 19, 30);
+    cursor_to(w / 2 - 19, h / 2 + 11);
     printf("▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔");
 
 }
