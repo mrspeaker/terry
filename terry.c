@@ -95,6 +95,7 @@ void init_grid() {
 void init() {
     init_tty(true);
     esc("?25l"); // hide cursor
+    esc(">2;1u");
     init_grid();
 }
 
@@ -193,6 +194,8 @@ void done(int signum) {
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
 
+    esc("<1u");
+
     cursor_to(0, 0);
     exit(signum);
 };
@@ -251,6 +254,19 @@ int main() {
                 set_fg(C_WHITE);
                 printf("%d", key);
             }
+                cursor_to(0, 0);
+                set_bg(C_BLACK);
+                set_fg(C_WHITE);
+                while((key = fgetc(stdin)) != 'u') {
+                    if (key < 30)
+                        printf("0x%d ", key);
+                    else
+                        printf("%c", key);
+
+
+                }
+                printf("                        ");
+
         }
 
         // Update
