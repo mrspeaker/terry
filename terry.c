@@ -254,6 +254,14 @@ int main() {
                 set_fg(C_WHITE);
                 printf("%d", key);
             }
+
+            //char z[8] = {0};
+            //read(stdin, z, 8);
+
+
+
+            //if (kbhit()) {
+                printf("hit");
                 cursor_to(0, 0);
                 set_bg(C_BLACK);
                 set_fg(C_WHITE);
@@ -266,6 +274,7 @@ int main() {
 
                 }
                 printf("                        ");
+                //}
 
         }
 
