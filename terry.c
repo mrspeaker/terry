@@ -231,7 +231,7 @@ int main() {
         if (kbhit()) {
             dx = 0; // stop moving
             dy = 0;
-            key = fgetc(stdin);
+            key = 'v';// fgetc(stdin);
 
             if (key == 'q') running = false; // quit
 
@@ -241,7 +241,7 @@ int main() {
             if (key == 'd') dx = 1;
 
             // Check for escape code sequences
-            if (key == '\x1b') {
+            /*            if (key == '\x1b') {
                 key = fgetc(stdin); // '['
                 key = fgetc(stdin);
                 if (key == 27) running = false; // esc
@@ -249,31 +249,28 @@ int main() {
                 if (key == 'B') dy = 1; // down arrow
                 if (key == 'C') dx = 1; // right arrow
                 if (key == 'D') dx = -1; // left arrow
-                cursor_to(0, 0);
-                set_bg(C_BLACK);
-                set_fg(C_WHITE);
-                printf("%d", key);
-            }
+                }*/
 
             //char z[8] = {0};
             //read(stdin, z, 8);
 
-
-
             //if (kbhit()) {
-                printf("hit");
-                cursor_to(0, 0);
-                set_bg(C_BLACK);
-                set_fg(C_WHITE);
-                while((key = fgetc(stdin)) != 'u') {
-                    if (key < 30)
-                        printf("0x%d ", key);
-                    else
-                        printf("%c", key);
+            cursor_to(0, 1);
+            set_bg(C_BLACK);
+            set_fg(C_WHITE);
+            char c[10]={0};
+
+            read(0, &c, sizeof(c));
+            for (int i = 0; i < sizeof(c); i++) {
+                if (c[i] == 0) continue;
+                if (c[i] < 30)
+                    printf("0x%d ", c[i]);
+                else
+                    printf("%c", c[i]);
+            }
 
 
-                }
-                printf("                        ");
+            printf(" <                 ");
                 //}
 
         }
