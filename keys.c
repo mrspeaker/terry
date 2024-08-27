@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
@@ -82,7 +83,9 @@ void print_half_block() {
 void init() {
     init_tty(true);
     esc("?25l"); // hide cursor
-    esc(">2;1u");
+    // Emit code for key events (as specified in Kitty Keyboard Protocol)
+    // https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+    esc(">10;u"); // 08 (all keys as code) + 02 (key events)
 }
 
 void bg_fill() {
@@ -106,8 +109,7 @@ void done(int signum) {
     init_tty(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
-
-    esc("<1u");
+    esc("<u"); // disable key events (Kitty Keyboard Protocol)
 
     cursor_to(0, 0);
     exit(signum);
@@ -134,6 +136,9 @@ int main() {
     int t = 0;
     set_bg(C_BLACK);
 
+    char ex_code[] = {0x1b, '[', '2', '7', 'u'};
+    size_t ex_len = sizeof(ex_code)/sizeof(char);
+
     while(running){
         // Input
         if (kbhit()) {
@@ -142,6 +147,9 @@ int main() {
 
             char c[80]={0};
             read(0, &c, sizeof(c));
+            if (memcmp(c, ex_code, ex_len) == 0) {
+                running = false;
+            }
             for (unsigned long i = 0; i < sizeof(c); i++) {
                 if (c[i] == 0) {
                     printf(".");
