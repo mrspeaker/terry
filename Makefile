@@ -1,5 +1,5 @@
 .PHONY: all
-all: terry demo
+all: terry demo keys
 
 CC = gcc
 CFLAGS = -Wall -O2

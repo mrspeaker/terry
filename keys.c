@@ -138,18 +138,21 @@ int main() {
         // Input
         if (kbhit()) {
             set_fg(((t / h) % 14) + 1);
-
             cursor_to(0, t % h);
-            char c[80]={0};
 
+            char c[80]={0};
             read(0, &c, sizeof(c));
             for (unsigned long i = 0; i < sizeof(c); i++) {
                 if (c[i] == 0) {
                     printf(".");
                     continue;
                 }
-                if (c[i] < 30)
-                    printf("0x%d ", c[i]);
+                if (c[i] == 0x1b) {
+                    printf("^");
+                    continue;
+                }
+                if (c[i] < 40)
+                    printf("0x%d", c[i]);
                 else
                     printf("%c", c[i]);
             }
@@ -157,7 +160,6 @@ int main() {
             t++;
 
         }
-
 
         fflush(stdout);
         usleep(delay);
