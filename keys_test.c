@@ -3,50 +3,19 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <termios.h>
 #include <unistd.h>
-#include "./ansi_parse.h"
-#include "./keys.h"
+
+#include "./ansi_keys.h"
 
 #define C_BLACK 16
 #define C_WHITE 15
 #define delay 1000000 / 30
 #define MAX_KEYS 10
+#define BUF_SIZE 80
 
 uint16_t w = 0;
 uint16_t h = 0;
 struct winsize win;
-
-// Set/restore non-canonical and no-echo in tty
-void init_tty(bool enable) {
-    struct termios tty;
-    tcgetattr(STDIN_FILENO, &tty); // current state
-    if (enable) {
-        tty.c_lflag &= ~ICANON; // non-canonical (raw)
-        tty.c_lflag &= ~ECHO;   // no echo
-        tty.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
-    }  else {
-        tty.c_lflag |= ICANON;
-        tty.c_lflag |= ECHO;
-    }
-    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-}
-
-// Simulates kbhit
-//
-// select() allows a program to monitor multiple file descriptors,
-// waiting until one or more of the file descriptors become "ready".
-// Non blocking.
-bool kbhit() {
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0; // wait 0 time
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
-    return FD_ISSET(STDIN_FILENO, &fds) != 0;
-}
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -73,16 +42,12 @@ void cls() {
 void init() {
     init_tty(true);
     esc("?25l"); // hide cursor
-    // Emit code for key events (as specified in Kitty Keyboard Protocol)
-    // https://sw.kovidgoyal.net/kitty/keyboard-protocol/
-    esc(">10;u"); // 08 (all keys as code) + 02 (key events)
 }
 
 void done(int signum) {
     init_tty(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
-    esc("<u"); // disable key events (Kitty Keyboard Protocol)
 
     cursor_to(0, 0);
     exit(signum);
@@ -126,49 +91,33 @@ int main() {
     init();
     resize();
 
+    char buf[BUF_SIZE]={0};
+    key_ev keys[MAX_KEYS];
+    init_keys(keys, MAX_KEYS);
+
     bool running = true;
     int t = 0;
     set_bg(C_BLACK);
 
-    key_ev keys[MAX_KEYS];
-    init_keys(keys, MAX_KEYS);
-
     while(running){
         // Input
-        if (kbhit()) {
-            set_fg(((t / h) % 14) + 1);
-
-            char c[80]={0};
-            size_t n = read(0, &c, sizeof(c));
-            if (n < sizeof(c) && n > 0) {
-                // parse the input
-                int num_codes = 0;
-                ansi_state st = ansi_init();
-                for (size_t i = 0; i < n; i++) {
-                    ansi_res res = ansi_step(&st, c[i]);
-                    if (res.done) {
-                        cursor_to(w - 8, ++num_codes);
-                        if (isprint(res.key_code)) {
-                            printf("%c %d %d \n", res.key_code, res.modifier, res.key_event);
-                        } else {
-                            printf("%d %d %d \n", res.key_code, res.modifier, res.key_event);
-                        }
-
-                        set_key(res.key_code, res.key_event, keys, MAX_KEYS);
-                    }
-                }
-                cursor_to(w - 8, ++num_codes);
-                printf("....... ");
-            } else {
-                // missed some input... just bail on all (keyup everything!)
-            }
-
+        size_t n = read_keys(buf, BUF_SIZE, keys, MAX_KEYS);
+        if (n > 0) {
+            set_fg(((t++ / h) % 14) + 1);
             cursor_to(0, t % h);
-            print_chars(c, sizeof(c));
-            t++;
-
+            print_chars(buf, BUF_SIZE);
         }
 
+        // Print held keys
+        int down = 0;
+        cursor_to(w - MAX_KEYS, 0);
+        printf("          ");
+        for (int i = 0; i < MAX_KEYS; i++) {
+            if (keys[i].key_code > 0) {
+                cursor_to(w - down++, 0);
+                printf("%c", keys[i].key_code);
+            }
+        }
 
         if (is_pressed('q', keys, MAX_KEYS)) {
             running = false;

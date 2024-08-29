@@ -1,3 +1,6 @@
+#ifndef KEYS_H
+#define KEYS_H
+
 #include <stdbool.h>
 #include <unistd.h>
 
@@ -57,3 +60,5 @@ void set_key(int key_code, int key_event, key_ev *keys, size_t size) {
         k->pressed = key_event == 1;
     }
 }
+
+#endif // KEYS_H
