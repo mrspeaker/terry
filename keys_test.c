@@ -6,10 +6,12 @@
 #include <termios.h>
 #include <unistd.h>
 #include "./ansi_parse.h"
+#include "./keys.h"
 
 #define C_BLACK 16
 #define C_WHITE 15
 #define delay 1000000 / 30
+#define MAX_KEYS 10
 
 uint16_t w = 0;
 uint16_t h = 0;
@@ -107,13 +109,14 @@ void print_chars(char *c, int len) {
             printf("^");
             continue;
         }
-        if (c[i] < 40)
-            printf("0x%d", c[i]);
-        else
+        if (isprint(c[i]))
             printf("%c", c[i]);
+        else
+            printf("<%d>", c[i]);
     }
     printf("<");
 }
+
 
 int main() {
     signal(SIGINT, done);
@@ -126,6 +129,9 @@ int main() {
     bool running = true;
     int t = 0;
     set_bg(C_BLACK);
+
+    key_ev keys[MAX_KEYS];
+    init_keys(keys, MAX_KEYS);
 
     while(running){
         // Input
@@ -142,8 +148,13 @@ int main() {
                     ansi_res res = ansi_step(&st, c[i]);
                     if (res.done) {
                         cursor_to(w - 8, ++num_codes);
-                        printf("%c %d %d \n", res.key_code, res.modifier, res.key_event);
-                        if (res.key_code == 'q') running = false;
+                        if (isprint(res.key_code)) {
+                            printf("%c %d %d \n", res.key_code, res.modifier, res.key_event);
+                        } else {
+                            printf("%d %d %d \n", res.key_code, res.modifier, res.key_event);
+                        }
+
+                        set_key(res.key_code, res.key_event, keys, MAX_KEYS);
                     }
                 }
                 cursor_to(w - 8, ++num_codes);
@@ -156,6 +167,14 @@ int main() {
             print_chars(c, sizeof(c));
             t++;
 
+        }
+
+
+        if (is_pressed('q', keys, MAX_KEYS)) {
+            running = false;
+        }
+        if (is_down('z', keys, MAX_KEYS)) {
+            running = false;
         }
 
         fflush(stdout);

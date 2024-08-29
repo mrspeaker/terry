@@ -1,5 +1,5 @@
 .PHONY: all
-all: terry demo keys test
+all: terry demo keys_test test
 
 CC = gcc
 CFLAGS = -Wall -O2 -I.
