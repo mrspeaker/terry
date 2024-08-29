@@ -6,8 +6,7 @@
 
 ansi_state ansi_init(void) {
     ansi_state s = {
-        .state = ANSI_ESC,
-        .key_code = 0
+        .state = ANSI_ESC
     };
     return s;
 }
@@ -27,8 +26,7 @@ void ansi_done(ansi_state *state, ansi_res *res) {
 
 ansi_res ansi_step(ansi_state *state, char c) {
     ansi_res r = {
-        .done = false,
-        .key_code = 0
+        .done = false
     };
 
     switch (state->state) {
@@ -58,6 +56,8 @@ ansi_res ansi_step(ansi_state *state, char c) {
         break;
 
     case ANSI_MODIFIER:
+        // TODO: wrong! modifier can be > 1 digit
+        // (because can be ctrl+shift)
         if (isdigit(c)) {
             state->key_modifier = c - '0';
         } else if (c == ':') {

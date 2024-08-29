@@ -2,11 +2,8 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <stdio.h>
-#include <string.h>
 #include <termios.h>
-#include <time.h>
 #include <unistd.h>
 #include "./ansi_parse.h"
 
@@ -79,23 +76,6 @@ void init() {
     esc(">10;u"); // 08 (all keys as code) + 02 (key events)
 }
 
-void bg_fill() {
-    set_bg(C_BLACK);
-    for (int j = 0; j <= h; j++) {
-        for (int i = 0; i <= w; i++) {
-            cursor_to(i, j);
-            if (rand() % 30 == 0) {
-                // Star
-                set_fg((rand() % 20) + 232);
-                printf(".");
-            } else {
-                // Empty
-                printf(" ");
-            }
-        }
-    }
-}
-
 void done(int signum) {
     init_tty(false);
     esc("?25h"); // show cursor
@@ -110,7 +90,6 @@ void resize() {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &win);
     w = win.ws_col;
     h = win.ws_row;
-    bg_fill();
 }
 
 typedef struct {
@@ -137,8 +116,6 @@ void print_chars(char *c, int len) {
 }
 
 int main() {
-    srand(time(0));
-
     signal(SIGINT, done);
     signal(SIGWINCH, resize);
 
@@ -153,17 +130,16 @@ int main() {
     while(running){
         // Input
         if (kbhit()) {
-            char c[80]={0};
-            size_t n = read(0, &c, sizeof(c));
             set_fg(((t / h) % 14) + 1);
 
+            char c[80]={0};
+            size_t n = read(0, &c, sizeof(c));
             if (n < sizeof(c) && n > 0) {
                 // parse the input
                 int num_codes = 0;
                 ansi_state st = ansi_init();
                 for (size_t i = 0; i < n; i++) {
-                    char ch = c[i];
-                    ansi_res res = ansi_step(&st, ch);
+                    ansi_res res = ansi_step(&st, c[i]);
                     if (res.done) {
                         cursor_to(w - 8, ++num_codes);
                         printf("%c %d %d \n", res.key_code, res.modifier, res.key_event);
