@@ -1,8 +1,8 @@
 .PHONY: all
-all: terry demo keys
+all: terry demo keys test
 
 CC = gcc
-CFLAGS = -Wall -O2
+CFLAGS = -Wall -O2 -I.
 
 %: %.c
-	gcc -o $@ $<
+	$(CC) -o $@ $(CFLAGS) ansi_parse.c $<

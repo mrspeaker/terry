@@ -8,6 +8,7 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include "./ansi_parse.h"
 
 #define C_BLACK 16
 #define C_WHITE 15
@@ -64,20 +65,10 @@ void set_fg(uint8_t col) {
     printf("\e[38;5;%dm", col);
 }
 
-// only on terminals with 24bit color support
-void set_bg_rgb(uint8_t r, uint8_t g, uint8_t b) {
-    printf("\e[48;2;%d;%d;%dm", r, g, b);
-}
-
 void cls() {
     set_bg(C_BLACK);
     set_fg(C_WHITE);
     esc("2J"); // clear screen
-}
-
-// Use the half-block char to make squarer, double res pixels
-void print_half_block() {
-    printf("\u2580"); // Upper Half Block "▀"
 }
 
 void init() {
@@ -122,6 +113,29 @@ void resize() {
     bg_fill();
 }
 
+typedef struct {
+    char code;
+    bool is_down;
+} key_event;
+
+void print_chars(char *c, int len) {
+    for (int i = 0; i < len; i++) {
+        if (c[i] == 0) {
+            printf("_");
+            continue;
+        }
+        if (c[i] == 0x1b) {
+            printf("^");
+            continue;
+        }
+        if (c[i] < 40)
+            printf("0x%d", c[i]);
+        else
+            printf("%c", c[i]);
+    }
+    printf("<");
+}
+
 int main() {
     srand(time(0));
 
@@ -136,35 +150,34 @@ int main() {
     int t = 0;
     set_bg(C_BLACK);
 
-    char ex_code[] = {0x1b, '[', '2', '7', 'u'};
-    size_t ex_len = sizeof(ex_code)/sizeof(char);
-
     while(running){
         // Input
         if (kbhit()) {
-            set_fg(((t / h) % 14) + 1);
-            cursor_to(0, t % h);
-
             char c[80]={0};
-            read(0, &c, sizeof(c));
-            if (memcmp(c, ex_code, ex_len) == 0) {
-                running = false;
-            }
-            for (unsigned long i = 0; i < sizeof(c); i++) {
-                if (c[i] == 0) {
-                    printf(".");
-                    continue;
+            size_t n = read(0, &c, sizeof(c));
+            set_fg(((t / h) % 14) + 1);
+
+            if (n < sizeof(c) && n > 0) {
+                // parse the input
+                int num_codes = 0;
+                ansi_state st = ansi_init();
+                for (size_t i = 0; i < n; i++) {
+                    char ch = c[i];
+                    ansi_res res = ansi_step(&st, ch);
+                    if (res.done) {
+                        cursor_to(w - 8, ++num_codes);
+                        printf("%c %d %d \n", res.key_code, res.modifier, res.key_event);
+                        if (res.key_code == 'q') running = false;
+                    }
                 }
-                if (c[i] == 0x1b) {
-                    printf("^");
-                    continue;
-                }
-                if (c[i] < 40)
-                    printf("0x%d", c[i]);
-                else
-                    printf("%c", c[i]);
+                cursor_to(w - 8, ++num_codes);
+                printf("....... ");
+            } else {
+                // missed some input... just bail on all (keyup everything!)
             }
-            printf("<");
+
+            cursor_to(0, t % h);
+            print_chars(c, sizeof(c));
             t++;
 
         }
