@@ -50,6 +50,7 @@ ansi_res ansi_step(ansi_state *state, char c) {
             if (c == ';') {
                 state->state = ANSI_MODIFIER;
             } else {
+                state->key_event = 1;
                 ansi_done(state, &r);
             }
         }
