@@ -1,3 +1,6 @@
+#ifndef ANSI_PARSE_H
+#define ANSI_PARSE_H
+
 #include <ctype.h>
 #include <stdbool.h>
 
@@ -24,3 +27,5 @@ typedef struct {
 int ansi_special(char key);
 ansi_state ansi_init(void);
 ansi_res ansi_step(ansi_state *state, char c);
+
+#endif // ANSI_PARSE_H

@@ -102,14 +102,13 @@ int main() {
 
     while(running){
         // Input
-        size_t n = read_keys_from_ansi_seq(buf, BUF_SIZE, keys, MAX_KEYS);
-        if (n > 0) {
+        if (update_keys_from_ansi_seq(buf, BUF_SIZE, keys, MAX_KEYS)) {
             set_fg(((t++ / h) % 14) + 1);
             cursor_to(0, t % h);
             print_chars(buf, BUF_SIZE);
         }
 
-        // Print held keys
+        // Print any held keys
         int down = 0;
         cursor_to(w - MAX_KEYS, 0);
         printf("           ");
@@ -120,11 +119,12 @@ int main() {
             }
         }
 
+        // Use key info... q to quit
         if (is_pressed('q', keys, MAX_KEYS)) {
             running = false;
         }
+        // Check up arrow
         if (is_down(ansi_special('A'), keys, MAX_KEYS)) {
-            //up arrow
             running = false;
         }
 

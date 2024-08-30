@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <sys/select.h>
 #include "./ansi_parse.h"
-#include "./keys.h"
+#include "./key_state.h"
 
 // Set/restore non-canonical and no-echo in tty and set keyboar protocol
 void init_tty(bool enable) {
@@ -57,8 +57,8 @@ void parse_input(char *buf, size_t size, key_ev *keys, size_t k_size) {
     }
 }
 
-/// Read ansi keyboard data from stdin into a buffer
-size_t read_keys_from_ansi_seq(char *buf, size_t size, key_ev *keys, size_t k_size) {
+/// Update key state from stdin ansi sequences, into a buffer and parse as keys
+size_t update_keys_from_ansi_seq(char *buf, size_t size, key_ev *keys, size_t k_size) {
     if (kbhit()) {
         memset(buf, 0, size);
         size_t n = read(STDIN_FILENO, buf, size);

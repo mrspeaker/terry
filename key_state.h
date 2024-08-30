@@ -1,5 +1,5 @@
-#ifndef KEYS_H
-#define KEYS_H
+#ifndef KEY_STATE_H
+#define KEY_STATE_H
 
 #include <stdbool.h>
 #include <unistd.h>
@@ -61,4 +61,4 @@ void set_key(int key_code, int key_event, key_ev *keys, size_t size) {
     }
 }
 
-#endif // KEYS_H
+#endif // KEY_STATE_H
