@@ -2,10 +2,10 @@
 #define ANSI_KEYS_H
 
 #include <termios.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/select.h>
 #include "./ansi_parse.h"
 #include "./keys.h"
 
@@ -58,7 +58,7 @@ void parse_input(char *buf, size_t size, key_ev *keys, size_t k_size) {
 }
 
 /// Read ansi keyboard data from stdin into a buffer
-size_t read_keys(char *buf, size_t size, key_ev *keys, size_t k_size) {
+size_t read_keys_from_ansi_seq(char *buf, size_t size, key_ev *keys, size_t k_size) {
     if (kbhit()) {
         memset(buf, 0, size);
         size_t n = read(STDIN_FILENO, buf, size);

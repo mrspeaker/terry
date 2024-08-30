@@ -1,8 +1,9 @@
 #include <sys/ioctl.h>
 #include <signal.h>
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "./ansi_keys.h"
@@ -101,7 +102,7 @@ int main() {
 
     while(running){
         // Input
-        size_t n = read_keys(buf, BUF_SIZE, keys, MAX_KEYS);
+        size_t n = read_keys_from_ansi_seq(buf, BUF_SIZE, keys, MAX_KEYS);
         if (n > 0) {
             set_fg(((t++ / h) % 14) + 1);
             cursor_to(0, t % h);
@@ -111,7 +112,7 @@ int main() {
         // Print held keys
         int down = 0;
         cursor_to(w - MAX_KEYS, 0);
-        printf("          ");
+        printf("           ");
         for (int i = 0; i < MAX_KEYS; i++) {
             if (keys[i].key_code > 0) {
                 cursor_to(w - down++, 0);
