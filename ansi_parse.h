@@ -21,5 +21,6 @@ typedef struct {
     int key_event;
 } ansi_res;
 
+int ansi_special(char key);
 ansi_state ansi_init(void);
 ansi_res ansi_step(ansi_state *state, char c);

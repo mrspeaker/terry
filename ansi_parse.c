@@ -24,6 +24,10 @@ void ansi_done(ansi_state *state, ansi_res *res) {
     res->done = true;
 }
 
+int ansi_special(char key) {
+    return (0xE0 << 8) | key;
+}
+
 ansi_res ansi_step(ansi_state *state, char c) {
     ansi_res r = {
         .done = false
@@ -45,8 +49,11 @@ ansi_res ansi_step(ansi_state *state, char c) {
         if (isdigit(c)) {
             int num = c - '0';
             state->key_code = (state->key_code * 10) + num;
+        } else if (c >= 'A' && c <= 'D') {
+            state->key_code = ansi_special(c);
+            state->key_event = 1;
+            ansi_done(state, &r);
         } else {
-            r.key_code = state->key_code;
             if (c == ';') {
                 state->state = ANSI_MODIFIER;
             } else {
@@ -71,6 +78,10 @@ ansi_res ansi_step(ansi_state *state, char c) {
     case ANSI_EVENT:
         if (isdigit(c)) {
             state->key_event = c - '0';
+        } else if (c >= 'A' && c <= 'D' ) {
+            // arrow keys
+            state->key_code = ansi_special(c);
+            ansi_done(state, &r);
         } else if (c == 'u') {
             ansi_done(state, &r);
         } else {

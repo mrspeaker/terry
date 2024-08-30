@@ -123,7 +123,8 @@ int main() {
         if (is_pressed('q', keys, MAX_KEYS)) {
             running = false;
         }
-        if (is_down('z', keys, MAX_KEYS)) {
+        if (is_down(ansi_special('A'), keys, MAX_KEYS)) {
+            //up arrow
             running = false;
         }
 
