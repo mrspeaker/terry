@@ -65,6 +65,7 @@ typedef struct {
     bool is_down;
 } key_event;
 
+/// debug print buffer full line
 void print_chars(char *c, int len) {
     for (int i = 0; i < len; i++) {
         if (c[i] == 0) {
@@ -83,6 +84,18 @@ void print_chars(char *c, int len) {
     printf("<");
 }
 
+/// debug print is_down keys
+void print_held_keys(key_ev* keys) {
+    int down = 0;
+    cursor_to(w - MAX_KEYS, 0);
+    printf("           ");
+    for (int i = 0; i < MAX_KEYS; i++) {
+        if (keys[i].key_code > 0) {
+            cursor_to(w - down++, 0);
+            printf("%c", keys[i].key_code);
+        }
+    }
+}
 
 int main() {
     signal(SIGINT, done);
@@ -108,16 +121,7 @@ int main() {
             print_chars(buf, BUF_SIZE);
         }
 
-        // Print any held keys
-        int down = 0;
-        cursor_to(w - MAX_KEYS, 0);
-        printf("           ");
-        for (int i = 0; i < MAX_KEYS; i++) {
-            if (keys[i].key_code > 0) {
-                cursor_to(w - down++, 0);
-                printf("%c", keys[i].key_code);
-            }
-        }
+        print_held_keys(keys);
 
         // Use key info... q to quit
         if (is_pressed('q', keys, MAX_KEYS)) {
