@@ -101,6 +101,12 @@ int main() {
 
     ansi_keys *keys = make_ansi_keys();
 
+    if (check_ansi_keys_enabled(keys)) {
+        printf("HAS KEYS\n");
+    } else {
+        printf("NO KEYS\n");
+    }
+
     bool running = true;
     int t = 0;
     set_bg(C_BLACK);

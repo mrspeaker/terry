@@ -13,6 +13,7 @@ typedef struct {
         ANSI_BYTE,
         ANSI_MODIFIER,
         ANSI_EVENT,
+        ANSI_QUERY
     } state;
     int key_code;
     int key_modifier;
@@ -21,6 +22,7 @@ typedef struct {
 
 typedef struct {
     bool done;
+    bool is_query;
     int key_code;
     int modifier;
     int key_event;
@@ -37,6 +39,7 @@ void ansi_done(ansi_state *state, ansi_res *res) {
     res->key_code = state->key_code;
     res->modifier = state->key_modifier;
     res->key_event = state->key_event;
+    res->is_query = state->state == ANSI_QUERY;
 
     state->key_code = 0;
     state->key_modifier = 0;
@@ -71,6 +74,10 @@ ansi_res ansi_step(ansi_state *state, char c) {
         if (isdigit(c)) {
             int num = c - '0';
             state->key_code = (state->key_code * 10) + num;
+        } else if (c == '?') {
+            // query response
+            state->key_code = 0;
+            state->state = ANSI_QUERY;
         } else if (c >= 'A' && c <= 'D') {
             state->key_code = ansi_special(c);
             state->key_event = 1;
@@ -108,6 +115,17 @@ ansi_res ansi_step(ansi_state *state, char c) {
             ansi_done(state, &r);
         } else {
             // err.
+        }
+        break;
+
+    case ANSI_QUERY:
+        if (isdigit(c)) {
+            int num = c - '0';
+            state->key_code = (state->key_code * 10) + num;
+        } else if (c == 'u') {
+            ansi_done(state, &r);
+        } else {
+            // err
         }
         break;
 

@@ -145,4 +145,18 @@ size_t update_ansi_keys(ansi_keys *keys) {
     return n;
 }
 
+bool check_ansi_keys_enabled(ansi_keys *keys) {
+    printf("\e[?u"); // query if flags were set
+    fflush(stdout);
+    size_t n = read(STDIN_FILENO, keys->buf, keys->buf_size); // read bytes
+    ansi_state st = ansi_init();
+    for (size_t i = 0; i < n; i++) {
+        ansi_res res = ansi_step(&st, keys->buf[i]);
+        if (res.done && res.is_query) {
+            return true;
+        }
+    }
+    return false;
+}
+
 #endif // ANSI_KEYS_H
