@@ -39,12 +39,12 @@ void cls() {
 }
 
 void init() {
-    init_tty(true);
+    init_ansi_keys(true);
     esc("?25l"); // hide cursor
 }
 
 void done(int signum) {
-    init_tty(false);
+    init_ansi_keys(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
 
@@ -99,15 +99,15 @@ int main() {
     init();
     resize();
 
-    ansi_keys *keys = make_keys();
+    ansi_keys *keys = make_ansi_keys();
 
     bool running = true;
     int t = 0;
     set_bg(C_BLACK);
 
-    while(running){
+    while (running) {
         // Input
-        if (update_keys_from_ansi_seq(keys)) {
+        if (update_ansi_keys(keys)) {
             set_fg(((t++ / h) % 14) + 1);
             cursor_to(0, t % h);
             print_chars(keys);
@@ -116,11 +116,11 @@ int main() {
         print_held_keys(keys);
 
         // Use key info... q to quit
-        if (is_pressed('q', keys)) {
+        if (is_key_pressed('q', keys)) {
             running = false;
         }
         // Check up arrow
-        if (is_down(ansi_special('A'), keys)) {
+        if (is_key_down(ansi_special('A'), keys)) {
             running = false;
         }
 
@@ -128,7 +128,7 @@ int main() {
         usleep(delay);
     };
 
-    free_keys(keys);
+    free_ansi_keys(keys);
     done(0);
     return 0;
 }

@@ -28,7 +28,7 @@ typedef struct {
 } ansi_keys;
 
 // Set/restore non-canonical and no-echo in tty and set keyboar protocol
-void init_tty(bool enable) {
+void init_ansi_keys(bool enable) {
     struct termios tty;
     tcgetattr(STDIN_FILENO, &tty); // current state
     if (enable) {
@@ -63,7 +63,7 @@ bool kbhit() {
     return FD_ISSET(STDIN_FILENO, &fds) != 0;
 }
 
-ansi_keys *make_keys() {
+ansi_keys *make_ansi_keys() {
     ansi_keys *k = (ansi_keys*) malloc(sizeof(ansi_keys));
     k->size = MAX_KEYS;
     k->buf_size = BUF_SIZE;
@@ -78,7 +78,7 @@ ansi_keys *make_keys() {
     return k;
 }
 
-void free_keys(ansi_keys* kb) {
+void free_ansi_keys(ansi_keys* kb) {
     if (kb != NULL) {
         free(kb->keys);
         free(kb->buf);
@@ -86,7 +86,7 @@ void free_keys(ansi_keys* kb) {
     }
 }
 
-key_ev *find_key(int key_code, ansi_keys *keys) {
+key_ev *find_ansi_key(int key_code, ansi_keys *keys) {
     for (size_t i = 0; i < keys->size; i++) {
         if (keys->keys[i].key_code == key_code) {
             return &keys->keys[i];
@@ -95,10 +95,10 @@ key_ev *find_key(int key_code, ansi_keys *keys) {
     return NULL;
 }
 
-void set_key(int key_code, int key_event, ansi_keys *keys) {
-    key_ev *k = find_key(key_code, keys);
+void set_ansi_key(int key_code, int key_event, ansi_keys *keys) {
+    key_ev *k = find_ansi_key(key_code, keys);
     if (!k) {
-        k = find_key(0, keys); // find free key
+        k = find_ansi_key(0, keys); // find free key
         if (k == NULL) return;
         k->key_code = key_code;
     }
@@ -112,13 +112,13 @@ void set_key(int key_code, int key_event, ansi_keys *keys) {
     }
 }
 
-bool is_pressed(int key_code, ansi_keys *keys) {
-    key_ev *k = find_key(key_code, keys);
+bool is_key_pressed(int key_code, ansi_keys *keys) {
+    key_ev *k = find_ansi_key(key_code, keys);
     return k != NULL && k->pressed;
 }
 
-bool is_down(int key_code, ansi_keys *keys) {
-    key_ev *k = find_key(key_code, keys);
+bool is_key_down(int key_code, ansi_keys *keys) {
+    key_ev *k = find_ansi_key(key_code, keys);
     return k != NULL && k->is_down;
 }
 
@@ -128,13 +128,13 @@ void parse_ansi_seq(size_t size, ansi_keys *keys) {
     for (size_t i = 0; i < size; i++) {
         ansi_res res = ansi_step(&st, keys->buf[i]);
         if (res.done) {
-            set_key(res.key_code, res.key_event, keys);
+            set_ansi_key(res.key_code, res.key_event, keys);
         }
     }
 }
 
 /// Update key state from stdin ansi sequences, into a buffer and parse as keys
-size_t update_keys_from_ansi_seq(ansi_keys *keys) {
+size_t update_ansi_keys(ansi_keys *keys) {
     if (!kbhit()) {
         return 0; // No key pressed
     }
