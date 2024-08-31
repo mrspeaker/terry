@@ -11,8 +11,6 @@
 #define C_BLACK 16
 #define C_WHITE 15
 #define delay 1000000 / 30
-#define MAX_KEYS 10
-#define BUF_SIZE 80
 
 uint16_t w = 0;
 uint16_t h = 0;
@@ -60,39 +58,35 @@ void resize() {
     h = win.ws_row;
 }
 
-typedef struct {
-    char code;
-    bool is_down;
-} key_event;
-
 /// debug print buffer full line
-void print_chars(char *c, int len) {
-    for (int i = 0; i < len; i++) {
-        if (c[i] == 0) {
+void print_chars(ansi_keys* keys) {
+    for (size_t i = 0; i < keys->buf_size; i++) {
+        char c = keys->buf[i];
+        if (c == 0) {
             printf("_");
             continue;
         }
-        if (c[i] == 0x1b) {
+        if (c == 0x1b) {
             printf("^");
             continue;
         }
-        if (isprint(c[i]))
-            printf("%c", c[i]);
+        if (isprint(c))
+            printf("%c", c);
         else
-            printf("<%d>", c[i]);
+            printf("<%d>", c);
     }
     printf("<");
 }
 
 /// debug print is_down keys
-void print_held_keys(key_ev* keys) {
+void print_held_keys(ansi_keys* keys) {
     int down = 0;
-    cursor_to(w - MAX_KEYS, 0);
+    cursor_to(w - keys->size, 0);
     printf("           ");
-    for (int i = 0; i < MAX_KEYS; i++) {
-        if (keys[i].key_code > 0) {
+    for (size_t i = 0; i < keys->size; i++) {
+        if (keys->keys[i].key_code > 0) {
             cursor_to(w - down++, 0);
-            printf("%c", keys[i].key_code);
+            printf("%c", keys->keys[i].key_code);
         }
     }
 }
@@ -105,9 +99,7 @@ int main() {
     init();
     resize();
 
-    char buf[BUF_SIZE]={0};
-    key_ev keys[MAX_KEYS];
-    init_keys(keys, MAX_KEYS);
+    ansi_keys *keys = make_keys();
 
     bool running = true;
     int t = 0;
@@ -115,26 +107,28 @@ int main() {
 
     while(running){
         // Input
-        if (update_keys_from_ansi_seq(buf, BUF_SIZE, keys, MAX_KEYS)) {
+        if (update_keys_from_ansi_seq(keys)) {
             set_fg(((t++ / h) % 14) + 1);
             cursor_to(0, t % h);
-            print_chars(buf, BUF_SIZE);
+            print_chars(keys);
         }
 
         print_held_keys(keys);
 
         // Use key info... q to quit
-        if (is_pressed('q', keys, MAX_KEYS)) {
+        if (is_pressed('q', keys)) {
             running = false;
         }
         // Check up arrow
-        if (is_down(ansi_special('A'), keys, MAX_KEYS)) {
+        if (is_down(ansi_special('A'), keys)) {
             running = false;
         }
 
         fflush(stdout);
         usleep(delay);
     };
+
+    free_keys(keys);
     done(0);
     return 0;
 }

@@ -4,10 +4,28 @@
 #include <termios.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <sys/select.h>
+#include <unistd.h>
+
 #include "./ansi_parse.h"
-#include "./key_state.h"
+
+#define MAX_KEYS 10
+#define BUF_SIZE 80
+
+typedef struct {
+    int key_code;
+    bool is_down;
+    bool pressed;
+} key_ev;
+
+typedef struct {
+    key_ev *keys;
+    size_t size;
+    char *buf;
+    size_t buf_size;
+} ansi_keys;
 
 // Set/restore non-canonical and no-echo in tty and set keyboar protocol
 void init_tty(bool enable) {
@@ -25,7 +43,6 @@ void init_tty(bool enable) {
         tty.c_lflag |= ICANON;
         tty.c_lflag |= ECHO;
         printf("\e[<u"); // disable key events (Kitty Keyboard Protocol)
-
     }
     tcsetattr(STDIN_FILENO, TCSANOW, &tty);
 }
@@ -46,26 +63,86 @@ bool kbhit() {
     return FD_ISSET(STDIN_FILENO, &fds) != 0;
 }
 
+ansi_keys *make_keys() {
+    ansi_keys *k = (ansi_keys*) malloc(sizeof(ansi_keys));
+    k->size = MAX_KEYS;
+    k->buf_size = BUF_SIZE;
+    k->keys = (key_ev*) malloc(sizeof(key_ev) * k->size);
+    k->buf = (char *) malloc(sizeof(char) * k->buf_size);
+
+    for (size_t i = 0; i < k->size; i++) {
+        key_ev key = { .key_code = 0 };
+        k->keys[i] = key;
+    }
+
+    return k;
+}
+
+void free_keys(ansi_keys* kb) {
+    if (kb != NULL) {
+        free(kb->keys);
+        free(kb->buf);
+        free(kb);
+    }
+}
+
+key_ev *find_key(int key_code, ansi_keys *keys) {
+    for (size_t i = 0; i < keys->size; i++) {
+        if (keys->keys[i].key_code == key_code) {
+            return &keys->keys[i];
+        }
+    }
+    return NULL;
+}
+
+void set_key(int key_code, int key_event, ansi_keys *keys) {
+    key_ev *k = find_key(key_code, keys);
+    if (!k) {
+        k = find_key(0, keys); // find free key
+        if (k == NULL) return;
+        k->key_code = key_code;
+    }
+    if (key_event == 3) {
+        k->key_code = 0;
+        k->is_down = false;
+        k->pressed = false;
+    } else {
+        k->is_down = true;
+        k->pressed = key_event == 1;
+    }
+}
+
+bool is_pressed(int key_code, ansi_keys *keys) {
+    key_ev *k = find_key(key_code, keys);
+    return k != NULL && k->pressed;
+}
+
+bool is_down(int key_code, ansi_keys *keys) {
+    key_ev *k = find_key(key_code, keys);
+    return k != NULL && k->is_down;
+}
+
 /// Parse ansi data into Key info
-void parse_input(char *buf, size_t size, key_ev *keys, size_t k_size) {
+void parse_ansi_seq(size_t size, ansi_keys *keys) {
     ansi_state st = ansi_init();
     for (size_t i = 0; i < size; i++) {
-        ansi_res res = ansi_step(&st, buf[i]);
+        ansi_res res = ansi_step(&st, keys->buf[i]);
         if (res.done) {
-            set_key(res.key_code, res.key_event, keys, k_size);
+            set_key(res.key_code, res.key_event, keys);
         }
     }
 }
 
 /// Update key state from stdin ansi sequences, into a buffer and parse as keys
-size_t update_keys_from_ansi_seq(char *buf, size_t size, key_ev *keys, size_t k_size) {
-    if (kbhit()) {
-        memset(buf, 0, size);
-        size_t n = read(STDIN_FILENO, buf, size);
-        parse_input(buf, n, keys, k_size);
-        return n;
+size_t update_keys_from_ansi_seq(ansi_keys *keys) {
+    if (!kbhit()) {
+        return 0; // No key pressed
     }
-    return 0;
+
+    memset(keys->buf, 0, keys->buf_size); // clear buffer
+    size_t n = read(STDIN_FILENO, keys->buf, keys->buf_size); // read bytes
+    parse_ansi_seq(n, keys); // parse it
+    return n;
 }
 
 #endif // ANSI_KEYS_H
