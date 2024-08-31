@@ -148,6 +148,11 @@ size_t update_ansi_keys(ansi_keys *keys) {
 bool check_ansi_keys_enabled(ansi_keys *keys) {
     printf("\e[?u"); // query if flags were set
     fflush(stdout);
+    usleep(1000000 / 30); // wait a sec
+
+    if (!kbhit()) {
+        return false; // No response
+    }
     size_t n = read(STDIN_FILENO, keys->buf, keys->buf_size); // read bytes
     ansi_state st = ansi_init();
     for (size_t i = 0; i < n; i++) {

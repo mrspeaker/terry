@@ -43,14 +43,18 @@ void init() {
     esc("?25l"); // hide cursor
 }
 
-void done(int signum) {
+
+void reset() {
     init_ansi_keys(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
-
     cursor_to(0, 0);
-    exit(signum);
 };
+
+void quit(int signum) {
+    reset();
+    exit(signum);
+}
 
 void resize() {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &win);
@@ -92,7 +96,7 @@ void print_held_keys(ansi_keys* keys) {
 }
 
 int main() {
-    signal(SIGINT, done);
+    signal(SIGINT, quit);
     signal(SIGWINCH, resize);
 
     cls();
@@ -101,13 +105,13 @@ int main() {
 
     ansi_keys *keys = make_ansi_keys();
 
+    bool running = false;
     if (check_ansi_keys_enabled(keys)) {
-        printf("HAS KEYS\n");
+        running = true;
     } else {
         printf("NO KEYS\n");
     }
 
-    bool running = true;
     int t = 0;
     set_bg(C_BLACK);
 
@@ -135,6 +139,7 @@ int main() {
     };
 
     free_ansi_keys(keys);
-    done(0);
+    reset();
+
     return 0;
 }
