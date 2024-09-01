@@ -126,11 +126,11 @@ int main() {
         print_held_keys(keys);
 
         // Use key info... q to quit
-        if (is_key_pressed('q', keys)) {
+        if (key_pressed('q', keys)) {
             running = false;
         }
         // Check up arrow
-        if (is_key_down(ansi_special('A'), keys)) {
+        if (key_down(ansi_special('A'), keys)) {
             running = false;
         }
 

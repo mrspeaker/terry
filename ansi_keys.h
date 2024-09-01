@@ -112,12 +112,12 @@ void set_ansi_key(int key_code, int key_event, ansi_keys *keys) {
     }
 }
 
-bool is_key_pressed(int key_code, ansi_keys *keys) {
+bool key_pressed(int key_code, ansi_keys *keys) {
     key_ev *k = find_ansi_key(key_code, keys);
     return k != NULL && k->pressed;
 }
 
-bool is_key_down(int key_code, ansi_keys *keys) {
+bool key_down(int key_code, ansi_keys *keys) {
     key_ev *k = find_ansi_key(key_code, keys);
     return k != NULL && k->is_down;
 }

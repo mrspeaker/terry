@@ -162,19 +162,19 @@ int main() {
         dy = 0;
 
         update_ansi_keys(keys);
-        if (is_key_pressed('q', keys)) {
+        if (key_pressed('q', keys)) {
             running = false;
         }
-        if (is_key_down('w', keys)) {
+        if (key_down('w', keys)) {
             dy = -1;
         }
-        if (is_key_down('s', keys)) {
+        if (key_down('s', keys)) {
             dy = 1;
         }
-        if (is_key_down('a', keys)) {
+        if (key_down('a', keys)) {
             dx = -1;
         }
-        if (is_key_down('d', keys)) {
+        if (key_down('d', keys)) {
             dx = 1;
         }
 
