@@ -177,6 +177,7 @@ int main() {
         if (key_down('d', keys)) {
             dx = 1;
         }
+        if (dx != 0) dy = 0;
 
 
         // Update
