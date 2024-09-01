@@ -95,12 +95,12 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid(int8_t x, int8_t y, int8_t col) {
+void update_grid(int8_t x, int8_t y, int8_t col, uint32_t t) {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = bg[j][i];
+            grid[j][i] = bg[j][i] + (rand() %3);
             if (i == x && j == y) {
-                grid[j][i] = 50;
+                grid[j][i] = col;
             }
         }
     }
@@ -155,7 +155,7 @@ int main() {
     int16_t y = COLS / 2;
     int8_t dx = 0;
     int8_t dy = 0;
-    int8_t col = 30;
+    int8_t col = 40;
 
     uint32_t t = 0;
 
@@ -192,14 +192,14 @@ int main() {
         // Update cursor
         
         x += dx;
-        if (x < 0) x = COLS;
-        if (x > COLS) x = 0;
+        if (x < 0) x = COLS - 1;
+        if (x > COLS - 1) x = 0;
 
         y += dy;
-        if (y < 0) y = ROWS;
-        if (y > ROWS) y = 0;
+        if (y < 0) y = ROWS - 1;
+        if (y > ROWS - 1) y = 0;
 
-        update_grid(x, y, col);
+        update_grid(x, y, col, t);
 
 
         // Render
