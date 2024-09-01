@@ -48,7 +48,7 @@ void reset() {
     init_ansi_keys(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
-    cursor_to(0, 0);
+    //cursor_to(0, 0);
 };
 
 void quit(int signum) {

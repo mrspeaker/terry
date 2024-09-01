@@ -4,9 +4,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <termios.h>
 #include <time.h>
 #include <unistd.h>
+
+#include "ansi_keys.h"
 
 #define COLS 40
 #define ROWS 40
@@ -20,37 +21,6 @@ uint16_t h = 0;
 struct winsize win;
 
 uint8_t grid[ROWS][COLS] = {0};
-
-// Set/restore non-canonical and no-echo in tty
-void init_tty(bool enable) {
-    struct termios tty;
-    tcgetattr(STDIN_FILENO, &tty); // current state
-    if (enable) {
-        tty.c_lflag &= ~ICANON; // non-canonical (raw)
-        tty.c_lflag &= ~ECHO;   // no echo
-        tty.c_cc[VMIN] = 1;     // min bytes needed to return from `read`.
-    }  else {
-        tty.c_lflag |= ICANON;
-        tty.c_lflag |= ECHO;
-    }
-    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
-}
-
-// Simulates kbhit
-//
-// select() allows a program to monitor multiple file descriptors,
-// waiting until one or more of the file descriptors become "ready".
-// Non blocking.
-bool kbhit() {
-    struct timeval tv;
-    fd_set fds;
-    tv.tv_sec = 0; // wait 0 time
-    tv.tv_usec = 0;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    select(STDIN_FILENO+1, &fds, NULL, NULL, &tv);
-    return FD_ISSET(STDIN_FILENO, &fds) != 0;
-}
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -93,21 +63,12 @@ void init_grid() {
 }
 
 void init() {
-    init_tty(true);
+    init_ansi_keys(true);
     esc("?25l"); // hide cursor
-    esc(">2;1u");
     init_grid();
 }
 
-#define FIRE_PAL 15
-
-uint8_t pal[FIRE_PAL] = {
-    16, 17, 18, 19, 54, 89, 90, 124,
-    160, 196, 208, 215,216, 223, 231};
-
 void render_grid() {
-    // TODO: instead of default green -> blue -> black, make it go:
-    //  white -> yellow -> red -> blue -> black for real fire-y look.
     for (uint8_t j = 0; j < ROWS - 2; j+=2) {
         cursor_to(w / 2 - 20, h / 2 - 8 + j / 2);
         for (uint8_t i = 0; i < COLS; i++) {
@@ -139,37 +100,8 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
 void update_grid() {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            // Average 4 pixels to do the fire effect
-            //   *    <- for each pixel,
-            //  123      avg the pixels underneath.
-            //   4
-            grid[j][i] =
-                (get_cell(i - 1, j + 1) +
-                get_cell(i, j + 1) +
-                get_cell(i + 1, j + 1) +
-                get_cell(i, j + 2)) / 4;
         }
     }
-    for (uint8_t i = 0; i < COLS; i++) {
-        grid[ROWS - 1][i] = rand() % 65;
-    }
-}
-
-void render_text(int t) {
-    set_bg(C_BLACK);
-    uint32_t col = t / 5;
-
-    set_fg(col);
-    cursor_to(w/2-7, h/2+2);
-    printf("Mr");
-
-    set_fg(col - 1);
-    cursor_to(w/2-4, h/2+2);
-    printf("Speaker");
-
-    set_fg(col - 2);
-    cursor_to(w/2+4, h/2+2);
-    printf("2024");
 }
 
 void bg_fill() {
@@ -190,11 +122,9 @@ void bg_fill() {
 }
 
 void done(int signum) {
-    init_tty(false);
     esc("?25h"); // show cursor
     esc("0m"); // reset fg/bg
-
-    esc("<1u");
+    init_ansi_keys(false);
 
     cursor_to(0, 0);
     exit(signum);
@@ -217,79 +147,41 @@ int main() {
     init();
     resize();
 
+    ansi_keys *keys = make_ansi_keys();
+
     int16_t x = w / 2;
     int16_t y = h / 2;
     int8_t dx = 0;
-    int8_t dy = -1;
+    int8_t dy = 0;
 
     uint32_t t = 0;
-    char key;
 
     bool running = true;
     while(running){
-        // Input
-        if (kbhit()) {
-            dx = 0; // stop moving
-            dy = 0;
-            key = 'v';// fgetc(stdin);
+        dx = 0; // stop moving
+        dy = 0;
 
-            if (key == 'q') running = false; // quit
-
-            if (key == 'w') dy = -1;
-            if (key == 's') dy = 1;
-            if (key == 'a') dx = -1;
-            if (key == 'd') dx = 1;
-
-            // Check for escape code sequences
-            /*            if (key == '\x1b') {
-                key = fgetc(stdin); // '['
-                key = fgetc(stdin);
-                if (key == 27) running = false; // esc
-                if (key == 'A') dy = -1; // up arrow
-                if (key == 'B') dy = 1; // down arrow
-                if (key == 'C') dx = 1; // right arrow
-                if (key == 'D') dx = -1; // left arrow
-                }*/
-
-            //char z[8] = {0};
-            //read(stdin, z, 8);
-
-            //if (kbhit()) {
-            cursor_to(0, 1);
-            set_bg(C_BLACK);
-            set_fg(C_WHITE);
-            char c[10]={0};
-
-            read(0, &c, sizeof(c));
-            for (int i = 0; i < sizeof(c); i++) {
-                if (c[i] == 0) continue;
-                if (c[i] < 30)
-                    printf("0x%d ", c[i]);
-                else
-                    printf("%c", c[i]);
-            }
-
-
-            printf(" <                 ");
-                //}
-
+        update_ansi_keys(keys);
+        if (is_key_pressed('q', keys)) {
+            running = false;
         }
+        if (is_key_down('w', keys)) {
+            dy = -1;
+        }
+        if (is_key_down('s', keys)) {
+            dy = 1;
+        }
+        if (is_key_down('a', keys)) {
+            dx = -1;
+        }
+        if (is_key_down('d', keys)) {
+            dx = 1;
+        }
+
 
         // Update
         t++;
         update_grid();
-
-        // Cursor direction
-        uint32_t r = rand() % 100;
-        if (r < 4) {
-            dx = 0;
-            dy = 0;
-            r = rand() % 4;
-            if (r == 0) dx = -1;
-            if (r == 1) dx = 1;
-            if (r == 2) dy = -1;
-            if (r == 3) dy = 1;
-        }
 
         // Update cursor
         x += dx;
@@ -302,7 +194,6 @@ int main() {
 
         // Render
         render_grid();
-        render_text(t);
 
         cursor_to(x, y);
         set_bg((t % (255 - 51))+51);
