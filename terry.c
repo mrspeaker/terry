@@ -21,6 +21,7 @@ uint16_t h = 0;
 struct winsize win;
 
 uint8_t grid[ROWS][COLS] = {0};
+uint8_t bg[ROWS][COLS] = {0};
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -57,7 +58,8 @@ void print_half_block() {
 void init_grid() {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = rand() % 20;
+            grid[j][i] = (rand() % 5) + 16;
+            bg[j][i] = grid[j][i];
         }
     }
 }
@@ -69,15 +71,11 @@ void init() {
 }
 
 void render_grid() {
-    for (uint8_t j = 0; j < ROWS - 2; j+=2) {
+    for (uint8_t j = 0; j < ROWS - 1; j+=2) {
         cursor_to(w / 2 - 20, h / 2 - 8 + j / 2);
         for (uint8_t i = 0; i < COLS; i++) {
             uint8_t top = grid[j][i];
             uint8_t bottom = grid[j + 1][i];
-
-            // Filter out a bunch o colors. (Gradient is indexes 16-51)
-            if (top < 16 || top > 51) top = C_BLACK;
-            if (bottom < 16 || bottom  > 51) bottom = C_BLACK;
 
             set_fg(top);
             set_bg(bottom);
@@ -97,9 +95,13 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid() {
+void update_grid(int8_t x, int8_t y, int8_t col) {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
+            grid[j][i] = bg[j][i];
+            if (i == x && j == y) {
+                grid[j][i] = 50;
+            }
         }
     }
 }
@@ -149,10 +151,11 @@ int main() {
 
     ansi_keys *keys = make_ansi_keys();
 
-    int16_t x = w / 2;
-    int16_t y = h / 2;
+    int16_t x = ROWS / 2;
+    int16_t y = COLS / 2;
     int8_t dx = 0;
     int8_t dy = 0;
+    int8_t col = 30;
 
     uint32_t t = 0;
 
@@ -177,21 +180,27 @@ int main() {
         if (key_down('d', keys)) {
             dx = 1;
         }
+        if (key_pressed(' ', keys)) {
+            col = ((col + 1) % 10) + 30;
+        }
         if (dx != 0) dy = 0;
 
 
         // Update
         t++;
-        update_grid();
 
         // Update cursor
+        
         x += dx;
-        if (x < 0) x = w;
-        if (x > w) x = 0;
+        if (x < 0) x = COLS;
+        if (x > COLS) x = 0;
 
         y += dy;
-        if (y < 0) y = h;
-        if (y > h) y = 0;
+        if (y < 0) y = ROWS;
+        if (y > ROWS) y = 0;
+
+        update_grid(x, y, col);
+
 
         // Render
         render_grid();
