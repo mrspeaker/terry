@@ -16,12 +16,20 @@
 #define C_WHITE 15
 #define delay 1000000 / 30
 
-uint16_t w = 0;
-uint16_t h = 0;
+uint16_t scr_w = 0;
+uint16_t scr_h = 0;
 struct winsize win;
 
 uint8_t grid[ROWS][COLS] = {0};
-uint8_t bg[ROWS][COLS] = {0};
+
+#define TILE_COLS COLS / 2
+#define TILE_ROWS ROWS / 2
+uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
+
+#define TILE_EMPTY 0
+#define TILE_BEDROCK 1
+#define TILE_ROCK 2
+#define TILE_SAND 3
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -58,9 +66,13 @@ void print_half_block() {
 void init_grid() {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            uint8_t c = i % 4 == 0 || j % 4 == 0 ? 18 : C_BLACK;
-            grid[j][i] = c; //(rand() % 5) + 16;
-            bg[j][i] = grid[j][i];
+            grid[j][i] = 0;
+        }
+    }
+    for (uint8_t j = 0; j < TILE_ROWS; j++) {
+        for (uint8_t i = 0; i < TILE_COLS; i++) {
+            uint8_t t = (rand() % 3) + 1;
+            tiles[j][i] = rand() % 10 < 5 ? 0 : t;
         }
     }
 }
@@ -73,7 +85,7 @@ void init() {
 
 void render_grid() {
     for (uint8_t j = 0; j < ROWS - 1; j+=2) {
-        cursor_to(w / 2 - 20, h / 2 - 8 + j / 2);
+        cursor_to(scr_w / 2 - 20, scr_h / 2 - 8 + j / 2);
         for (uint8_t i = 0; i < COLS; i++) {
             uint8_t top = grid[j][i];
             uint8_t bottom = grid[j + 1][i];
@@ -99,7 +111,7 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
 void update_grid(int8_t x, int8_t y, int8_t col, uint32_t t) {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = bg[j][i] + (rand() %3);
+            grid[j][i] = tiles[j / 2][i / 2];
             if (i == x && j == y) {
                 grid[j][i] = col;
             }
@@ -107,10 +119,45 @@ void update_grid(int8_t x, int8_t y, int8_t col, uint32_t t) {
     }
 }
 
+uint8_t get_tile(uint8_t x, uint8_t y) {
+    if (y >= TILE_ROWS || y < 0) return TILE_BEDROCK;
+    if (x >= TILE_COLS || x < 0) return TILE_BEDROCK;
+    return tiles[y][x];
+}
+
+void tick_grid() {
+    for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
+        for (uint8_t i = 0; i < TILE_COLS; i++) {
+            uint8_t t = get_tile(i, j);
+            if (t == TILE_EMPTY || t == TILE_BEDROCK) continue;
+            uint8_t b = get_tile(i, j + 1);
+            if (b == TILE_EMPTY) {
+                tiles[j + 1][i] = t;
+                tiles[j][i] = TILE_EMPTY;
+                continue;
+            }
+            uint8_t l = get_tile(i - 1, j);
+            uint8_t ld = get_tile(i - 1, j + 1);
+            if (ld == TILE_EMPTY && l == TILE_EMPTY) {
+                tiles[j + 1][i - 1] = t;
+                tiles[j][i] = TILE_EMPTY;
+                continue;
+            }
+            uint8_t r = get_tile(i + 1, j);
+            uint8_t rd = get_tile(i + 1, j + 1);
+            if (r == TILE_EMPTY && rd == TILE_EMPTY) {
+                tiles[j + 1][i + 1] = t;
+                tiles[j][i] = TILE_EMPTY;
+                continue;
+            }
+        }
+    }
+}
+
 void bg_fill() {
     set_bg(C_BLACK);
-    for (int j = 0; j <= h; j++) {
-        for (int i = 0; i <= w; i++) {
+    for (int j = 0; j <= scr_h; j++) {
+        for (int i = 0; i <= scr_w; i++) {
             cursor_to(i, j);
             if (rand() % 30 == 0) {
                 // Star
@@ -135,8 +182,8 @@ void done(int signum) {
 
 void resize() {
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &win);
-    w = win.ws_col;
-    h = win.ws_row;
+    scr_w = win.ws_col;
+    scr_h = win.ws_row;
     bg_fill();
 }
 
@@ -200,7 +247,15 @@ int main() {
         if (y < 0) y = ROWS - 1;
         if (y > ROWS - 1) y = 0;
 
+        if (t % 8 == 0) {
+            tick_grid();
+            uint8_t tile = get_tile(x/2, y/2);
+            if (tile == TILE_SAND) {
+                tiles[y/2][x/2] = TILE_EMPTY;
+            }
+        }
         update_grid(x, y, col, t);
+
 
 
         // Render
