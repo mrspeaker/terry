@@ -58,7 +58,8 @@ void print_half_block() {
 void init_grid() {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = (rand() % 5) + 16;
+            uint8_t c = i % 4 == 0 || j % 4 == 0 ? 18 : C_BLACK;
+            grid[j][i] = c; //(rand() % 5) + 16;
             bg[j][i] = grid[j][i];
         }
     }
