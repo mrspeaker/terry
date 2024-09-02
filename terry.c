@@ -26,10 +26,30 @@ uint8_t grid[ROWS][COLS] = {0};
 #define TILE_ROWS ROWS / 2
 uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
 
-#define TILE_EMPTY 0
-#define TILE_BEDROCK 1
-#define TILE_ROCK 2
-#define TILE_SAND 3
+typedef struct {
+    bool round;
+    bool explodable;
+    bool digable;
+} tile_deets;
+
+typedef enum {
+    TILE_EMPTY,
+    TILE_BEDROCK,
+    TILE_PLAYER,
+    TILE_ROCK,
+    TILE_ROCK_FALLING,
+    TILE_SAND,
+    TILE__LEN
+} tile_type;
+
+const tile_deets tiledefs[TILE__LEN] = {
+    [TILE_EMPTY] = { false, false, true },
+    [TILE_BEDROCK] = { true, false, false },
+    [TILE_PLAYER] = { false, true, true },
+    [TILE_ROCK] = { true, false, true },
+    [TILE_ROCK_FALLING] = { false, false, true },
+    [TILE_SAND] = { true, false, true },
+};
 
 void esc(char* str) {
     printf("\e[%s", str);
@@ -71,8 +91,15 @@ void init_grid() {
     }
     for (uint8_t j = 0; j < TILE_ROWS; j++) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
-            uint8_t t = (rand() % 3) + 1;
-            tiles[j][i] = rand() % 10 < 5 ? 0 : t;
+            if (rand() % 10 <= 5) {
+                tiles[j][i] = TILE_SAND;
+                continue;
+            }
+            if (rand() % 10 < 5) {
+                tiles[j][i] = TILE_ROCK;
+                continue;
+            }
+            tiles[j][i] = TILE_EMPTY;
         }
     }
 }
@@ -108,7 +135,7 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid(int8_t x, int8_t y, int8_t col, uint32_t t) {
+void update_grid(int8_t x, int8_t y, int8_t col) {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
             grid[j][i] = tiles[j / 2][i / 2];
@@ -125,30 +152,67 @@ uint8_t get_tile(uint8_t x, uint8_t y) {
     return tiles[y][x];
 }
 
+void set_tile(uint8_t x, uint8_t y, tile_type t) {
+    if (y >= TILE_ROWS || y < 0) return;
+    if (x >= TILE_COLS || x < 0) return;
+    tiles[y][x] = t;
+}
+
+bool is_empty(uint8_t x, uint8_t y) {
+    return get_tile(x, y) == TILE_EMPTY;
+}
+bool is_round(uint8_t x, uint8_t y) {
+    return tiledefs[get_tile(x, y)].round;
+}
+
 void tick_grid() {
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
             uint8_t t = get_tile(i, j);
-            if (t == TILE_EMPTY || t == TILE_BEDROCK) continue;
-            uint8_t b = get_tile(i, j + 1);
-            if (b == TILE_EMPTY) {
-                tiles[j + 1][i] = t;
-                tiles[j][i] = TILE_EMPTY;
-                continue;
-            }
-            uint8_t l = get_tile(i - 1, j);
-            uint8_t ld = get_tile(i - 1, j + 1);
-            if (ld == TILE_EMPTY && l == TILE_EMPTY) {
-                tiles[j + 1][i - 1] = t;
-                tiles[j][i] = TILE_EMPTY;
-                continue;
-            }
-            uint8_t r = get_tile(i + 1, j);
-            uint8_t rd = get_tile(i + 1, j + 1);
-            if (r == TILE_EMPTY && rd == TILE_EMPTY) {
-                tiles[j + 1][i + 1] = t;
-                tiles[j][i] = TILE_EMPTY;
-                continue;
+
+            if (t == TILE_EMPTY || t == TILE_BEDROCK || t == TILE_SAND) continue;
+
+            switch (t) {
+
+            case TILE_ROCK:
+                if (is_empty(i, j + 1)) {
+                    set_tile(i, j, TILE_ROCK_FALLING);
+                // Roll to the left
+                } else if (is_round(i, j + 1) &&
+                           is_empty(i - 1, j) &&
+                           is_empty(i - 1, j + 1)) {
+                    set_tile(i, j, TILE_EMPTY);
+                    set_tile(i - 1, j, TILE_ROCK_FALLING);
+                // Roll to the right
+                } else if (is_round(i, j + 1) &&
+                           is_empty(i + 1, j) &&
+                           is_empty(i + 1, j + 1)) {
+                    set_tile(i, j, TILE_EMPTY);
+                    set_tile(i + 1, j, TILE_ROCK_FALLING);
+                }
+                break;
+
+            case TILE_ROCK_FALLING:
+                // Straight down
+                if (is_empty(i, j + 1)) {
+                    set_tile(i, j, TILE_EMPTY);
+                    set_tile(i, j + 1, TILE_ROCK_FALLING);
+                // Roll to the left
+                } else if (is_round(i, j + 1) &&
+                           is_empty(i - 1, j) &&
+                           is_empty(i - 1, j + 1)) {
+                    set_tile(i, j, TILE_EMPTY);
+                    set_tile(i - 1, j, TILE_ROCK_FALLING);
+                // Roll to the right
+                } else if (is_round(i, j + 1) &&
+                           is_empty(i + 1, j) &&
+                           is_empty(i + 1, j + 1)) {
+                    set_tile(i, j, TILE_EMPTY);
+                    set_tile(i + 1, j, TILE_ROCK_FALLING);
+                } else {
+                    set_tile(i, j, TILE_ROCK);
+                }
+                break;
             }
         }
     }
@@ -254,7 +318,7 @@ int main() {
                 tiles[y/2][x/2] = TILE_EMPTY;
             }
         }
-        update_grid(x, y, col, t);
+        update_grid(x, y, col);
 
 
 
