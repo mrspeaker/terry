@@ -165,7 +165,7 @@ void update_grid(bool flash) {
 void reset_level() {
     for (uint8_t j = 0; j < TILE_ROWS; j++) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
-            if (j % 5 == 3 && i % 5 == 3) {
+            if (j % 5 == 2 && i % 5 == 2) {
                 tiles[j][i] = TILE_DIAMOND;
                 continue;
             }
@@ -398,7 +398,6 @@ int main() {
             reset_level();
         }
         if (dx != 0) dy = 0;
-
 
         // Update
         t++;
