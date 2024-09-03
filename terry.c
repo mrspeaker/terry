@@ -132,7 +132,8 @@ void render_grid() {
             if (top == bottom) {
                 if (top == 238) {
                     // sand
-                    set_fg(top+2);
+                    set_fg(top+1);
+                    // ▙ ░ ▒ ▓
                     printf("▚");
                 } else {
                     printf(" ");
