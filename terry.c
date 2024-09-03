@@ -133,12 +133,28 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid(int8_t x, int8_t y) {
-    for (uint8_t j = 0; j < ROWS; j++) {
-        for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = (tiles[j / 2][i / 2] * 15) + 20;
-            if (i == x && j == y) {
-                // grid[j][i] = 50;
+void update_grid() {
+    for (uint8_t y = 0; y < TILE_ROWS; y++) {
+        for (uint8_t x = 0; x < TILE_COLS; x++) {
+            tile_type t = tiles[y][x];
+            for (uint8_t j = 0; j < 2; j++) {
+                for (uint8_t i = 0; i < 2; i++) {
+                    uint8_t *cur = &(grid[y * 2 + j][x * 2 + i]);
+                    if (t == TILE_EMPTY) {
+                        *cur = C_BLACK;
+                    }
+                    else if (t == TILE_ROCK || t == TILE_ROCK_FALLING) {
+                        *cur = i && !j ? 245: 244;
+                    }
+                    else if (t == TILE_DIAMOND || t == TILE_DIAMOND_FALLING) {
+                        *cur = i && !j ? 43: 44 + (rand() % 5);
+                    }
+                    else if (t == TILE_SAND) {
+                        *cur = 238;
+                    } else {
+                        *cur = rand()%16;
+                    }
+                }
             }
         }
     }
@@ -391,15 +407,15 @@ int main() {
         if (t % 6 == 0) {
             tick_grid(dx, dy);
         }
-        update_grid(x, y);
+        update_grid();
 
         // Render
         render_grid();
 
-        cursor_to(x, y);
-        set_bg((t % (255 - 51))+51);
-        set_fg(((t + 1) % (255 - 51))+51);
-        print_half_block();
+        /* cursor_to(x, y); */
+        /* set_bg((t % (255 - 51))+51); */
+        /* set_fg(((t + 1) % (255 - 51))+51); */
+        /* print_half_block(); */
 
         fflush(stdout);
         usleep(delay);
