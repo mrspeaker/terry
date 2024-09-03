@@ -133,14 +133,16 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid() {
+void update_grid(bool flash) {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
             tile_type t = tiles[y][x];
             for (uint8_t j = 0; j < 2; j++) {
                 for (uint8_t i = 0; i < 2; i++) {
                     uint8_t *cur = &(grid[y * 2 + j][x * 2 + i]);
-                    if (t == TILE_EMPTY) {
+                    if (flash) {
+                        *cur = 51;
+                    } else if (t == TILE_EMPTY) {
                         *cur = C_BLACK;
                     }
                     else if (t == TILE_ROCK || t == TILE_ROCK_FALLING) {
@@ -270,7 +272,7 @@ void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fa
 
 }
 
-void update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
+bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
         set_tile(x, y, TILE_EMPTY);
@@ -279,10 +281,13 @@ void update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     if (t == TILE_DIAMOND) {
         set_tile(x, y, TILE_EMPTY);
         set_tile(x + dx, y + dy, TILE_PLAYER);
+        return true;
     }
+    return false;
 }
 
-void tick_grid(int8_t dx, int8_t dy) {
+bool tick_grid(int8_t dx, int8_t dy) {
+    bool flash = false;
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
             // Only process each cell once per tick
@@ -297,7 +302,11 @@ void tick_grid(int8_t dx, int8_t dy) {
             case TILE_ROCK_FALLING: update_tile_rock_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING); break;
             case TILE_DIAMOND: update_tile_rock(i, j, TILE_DIAMOND_FALLING); break;
             case TILE_DIAMOND_FALLING: update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING); break;
-            case TILE_PLAYER: update_player(i, j, dx, dy); break;
+            case TILE_PLAYER:
+                if (update_player(i, j, dx, dy)) {
+                    flash = true;
+                };
+                break;
             case TILE_EXP_1: set_tile(i, j, TILE_EXP_2); break;
             case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
             case TILE_EXP_3: set_tile(i, j, TILE_EMPTY); break;
@@ -307,6 +316,7 @@ void tick_grid(int8_t dx, int8_t dy) {
         }
     }
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
+    return flash;
 }
 
 void bg_fill() {
@@ -354,12 +364,11 @@ int main() {
 
     ansi_keys *keys = make_ansi_keys();
 
-    int16_t x = ROWS / 2;
-    int16_t y = COLS / 2;
     int8_t dx = 0;
     int8_t dy = 0;
 
     uint32_t t = 0;
+    int8_t flash = 0;
 
     reset_level();
 
@@ -394,28 +403,16 @@ int main() {
         // Update
         t++;
 
-        // Update cursor
-        
-        x += dx;
-        if (x < 0) x = COLS - 1;
-        if (x > COLS - 1) x = 0;
-
-        y += dy;
-        if (y < 0) y = ROWS - 1;
-        if (y > ROWS - 1) y = 0;
-
-        if (t % 6 == 0) {
-            tick_grid(dx, dy);
+        if (t % 5 == 0) {
+            if (tick_grid(dx, dy)) {
+                flash = 2;
+            }
         }
-        update_grid();
+        update_grid(flash > 0);
+        if (--flash < 0) flash = 0;
 
         // Render
         render_grid();
-
-        /* cursor_to(x, y); */
-        /* set_bg((t % (255 - 51))+51); */
-        /* set_fg(((t + 1) % (255 - 51))+51); */
-        /* print_half_block(); */
 
         fflush(stdout);
         usleep(delay);
