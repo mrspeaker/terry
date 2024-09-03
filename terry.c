@@ -130,7 +130,13 @@ void render_grid() {
             set_bg(bottom);
 
             if (top == bottom) {
-                printf(" ");
+                if (top == 238) {
+                    // sand
+                    set_fg(top+2);
+                    printf("▚");
+                } else {
+                    printf(" ");
+                }
                 continue;
             }
             print_half_block();
@@ -187,7 +193,7 @@ void update_grid(bool flash) {
                         *cur = 226 + (rand() % 5);
                         break;
                     default:
-                        *cur = rand()%16;
+                        *cur = rand()%(232-196)+197;
                         break;
                     }
                 }
