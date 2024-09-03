@@ -117,6 +117,14 @@ bool key_pressed(int key_code, ansi_keys *keys) {
     return k != NULL && k->pressed;
 }
 
+void key_unpress(int key_code, ansi_keys *keys) {
+    key_ev *k = find_ansi_key(key_code, keys);
+    if (k != NULL) {
+        k->pressed = false;
+        k->is_down = false;
+    }
+}
+
 bool key_down(int key_code, ansi_keys *keys) {
     key_ev *k = find_ansi_key(key_code, keys);
     return k != NULL && k->is_down;

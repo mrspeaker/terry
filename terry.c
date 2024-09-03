@@ -40,6 +40,11 @@ typedef enum {
     TILE_ROCK,
     TILE_ROCK_FALLING,
     TILE_SAND,
+    TILE_DIAMOND,
+    TILE_DIAMOND_FALLING,
+    TILE_EXP_1,
+    TILE_EXP_2,
+    TILE_EXP_3,
     TILE__LEN
 } tile_type;
 
@@ -50,6 +55,11 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_ROCK] = { true, false, true },
     [TILE_ROCK_FALLING] = { false, false, true },
     [TILE_SAND] = { true, false, true },
+    [TILE_DIAMOND] = { true, false, true },
+    [TILE_DIAMOND_FALLING] = { false, false, true },
+    [TILE_EXP_1] = { false, false, false },
+    [TILE_EXP_2] = { false, false, false },
+    [TILE_EXP_3] = { false, false, false },
 };
 
 void esc(char* str) {
@@ -90,21 +100,6 @@ void init_grid() {
             grid[j][i] = 0;
         }
     }
-    for (uint8_t j = 0; j < TILE_ROWS; j++) {
-        for (uint8_t i = 0; i < TILE_COLS; i++) {
-            if (rand() % 10 <= 5) {
-                tiles[j][i] = TILE_SAND;
-                continue;
-            }
-            if (rand() % 10 < 5) {
-                tiles[j][i] = TILE_ROCK;
-                continue;
-            }
-            tiles[j][i] = TILE_EMPTY;
-        }
-    }
-    tiles[TILE_ROWS/2][TILE_COLS/2] = TILE_PLAYER;
-
 }
 
 void init() {
@@ -138,15 +133,36 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
-void update_grid(int8_t x, int8_t y, int8_t col) {
+void update_grid(int8_t x, int8_t y) {
     for (uint8_t j = 0; j < ROWS; j++) {
         for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = tiles[j / 2][i / 2];
+            grid[j][i] = (tiles[j / 2][i / 2] * 15) + 20;
             if (i == x && j == y) {
-                grid[j][i] = col;
+                // grid[j][i] = 50;
             }
         }
     }
+}
+
+void reset_level() {
+    for (uint8_t j = 0; j < TILE_ROWS; j++) {
+        for (uint8_t i = 0; i < TILE_COLS; i++) {
+            if (j % 5 == 3 && i % 5 == 3) {
+                tiles[j][i] = TILE_DIAMOND;
+                continue;
+            }
+            if (rand() % 10 <= 6) {
+                tiles[j][i] = TILE_SAND;
+                continue;
+            }
+            if (rand() % 10 < 9) {
+                tiles[j][i] = TILE_ROCK;
+                continue;
+            }
+            tiles[j][i] = TILE_EMPTY;
+        }
+    }
+    tiles[TILE_ROWS/2][TILE_COLS/2] = TILE_PLAYER;
 }
 
 uint8_t get_tile(uint8_t x, uint8_t y) {
@@ -169,43 +185,71 @@ bool is_round(uint8_t x, uint8_t y) {
     return tiledefs[get_tile(x, y)].round;
 }
 
-void update_tile_rock(uint8_t i, uint8_t j) {
-    if (is_empty(i, j + 1)) {
-        set_tile(i, j, TILE_ROCK_FALLING);
-        // Roll to the left
-    } else if (is_round(i, j + 1) &&
-               is_empty(i - 1, j) &&
-               is_empty(i - 1, j + 1)) {
-        set_tile(i, j, TILE_EMPTY);
-        set_tile(i - 1, j, TILE_ROCK_FALLING);
-        // Roll to the right
-    } else if (is_round(i, j + 1) &&
-               is_empty(i + 1, j) &&
-               is_empty(i + 1, j + 1)) {
-        set_tile(i, j, TILE_EMPTY);
-        set_tile(i + 1, j, TILE_ROCK_FALLING);
+void explode(uint8_t x, uint8_t y) {
+    tile_type t = get_tile(x, y);
+    set_tile(x, y, TILE_EXP_1);
+
+    for (int8_t i = -1; i <= 1; i++) {
+        for (int8_t j = -1; j <= 1; j++) {
+            t = get_tile(x + i, y + j);
+            tile_deets td = tiledefs[t];
+            if (td.explodable) {
+                explode(x + i, y + j);
+            } else if (td.digable) {
+                set_tile(x + i, y + j, TILE_EXP_1);
+            }
+        }
     }
 }
 
-void update_tile_rock_falling(uint8_t i, uint8_t j) {
-    // Straight down
-    if (is_empty(i, j + 1)) {
-        set_tile(i, j, TILE_EMPTY);
-        set_tile(i, j + 1, TILE_ROCK_FALLING);
+void update_tile_rock(uint8_t i, uint8_t j, tile_type fall) {
+    tile_type d = get_tile(i, j + 1);
+    tile_deets td_d = tiledefs[d];
+
+    if (d == TILE_EMPTY) {
+        set_tile(i, j, fall);//TILE_ROCK_FALLING);
         // Roll to the left
-    } else if (is_round(i, j + 1) &&
+    } else if (td_d.round &&
                is_empty(i - 1, j) &&
                is_empty(i - 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i - 1, j, TILE_ROCK_FALLING);
+        set_tile(i - 1, j, fall);//TILE_ROCK_FALLING);
         // Roll to the right
-    } else if (is_round(i, j + 1) &&
+    } else if (td_d.round &&
                is_empty(i + 1, j) &&
                is_empty(i + 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i + 1, j, TILE_ROCK_FALLING);
+        set_tile(i + 1, j, fall);//TILE_ROCK_FALLING);
+    }
+}
+
+void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
+    tile_type d = get_tile(i, j + 1);
+    tile_deets td_d = tiledefs[d];
+
+    // Straight down
+    if (d == TILE_EMPTY) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i, j + 1, fall);//TILE_ROCK_FALLING);
+      // explode things
+    } else if (td_d.explodable) {
+        //...
+        explode(i, j + 1);
+
+        // Roll to the left
+    } else if (td_d.round &&
+               is_empty(i - 1, j) &&
+               is_empty(i - 1, j + 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i - 1, j, fall);//TILE_ROCK_FALLING);
+        // Roll to the right
+    } else if (td_d.round &&
+               is_empty(i + 1, j) &&
+               is_empty(i + 1, j + 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i + 1, j, fall);//TILE_ROCK_FALLING);
     } else {
-        set_tile(i, j, TILE_ROCK);
+        set_tile(i, j, rest);//TILE_ROCK);
     }
 
 }
@@ -213,6 +257,10 @@ void update_tile_rock_falling(uint8_t i, uint8_t j) {
 void update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
+        set_tile(x, y, TILE_EMPTY);
+        set_tile(x + dx, y + dy, TILE_PLAYER);
+    }
+    if (t == TILE_DIAMOND) {
         set_tile(x, y, TILE_EMPTY);
         set_tile(x + dx, y + dy, TILE_PLAYER);
     }
@@ -229,9 +277,14 @@ void tick_grid(int8_t dx, int8_t dy) {
             if (t == TILE_EMPTY || t == TILE_BEDROCK || t == TILE_SAND) continue;
 
             switch (t) {
-            case TILE_ROCK: update_tile_rock(i, j); break;
-            case TILE_ROCK_FALLING: update_tile_rock_falling(i, j); break;
+            case TILE_ROCK: update_tile_rock(i, j, TILE_ROCK_FALLING); break;
+            case TILE_ROCK_FALLING: update_tile_rock_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING); break;
+            case TILE_DIAMOND: update_tile_rock(i, j, TILE_DIAMOND_FALLING); break;
+            case TILE_DIAMOND_FALLING: update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING); break;
             case TILE_PLAYER: update_player(i, j, dx, dy); break;
+            case TILE_EXP_1: set_tile(i, j, TILE_EXP_2); break;
+            case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
+            case TILE_EXP_3: set_tile(i, j, TILE_EMPTY); break;
             default:
                 break;
             }
@@ -289,9 +342,10 @@ int main() {
     int16_t y = COLS / 2;
     int8_t dx = 0;
     int8_t dy = 0;
-    int8_t col = 40;
 
     uint32_t t = 0;
+
+    reset_level();
 
     bool running = true;
     while(running){
@@ -315,7 +369,8 @@ int main() {
             dx = 1;
         }
         if (key_pressed(' ', keys)) {
-            col = ((col + 1) % 10) + 30;
+            key_unpress(' ', keys);
+            reset_level();
         }
         if (dx != 0) dy = 0;
 
@@ -333,16 +388,10 @@ int main() {
         if (y < 0) y = ROWS - 1;
         if (y > ROWS - 1) y = 0;
 
-        if (t % 8 == 0) {
+        if (t % 6 == 0) {
             tick_grid(dx, dy);
-            /* uint8_t tile = get_tile(x/2, y/2); */
-            /* if (tile == TILE_SAND) { */
-            /*     tiles[y/2][x/2] = TILE_EMPTY; */
-            /* } */
         }
-        update_grid(x, y, col);
-
-
+        update_grid(x, y);
 
         // Render
         render_grid();
