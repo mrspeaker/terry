@@ -27,6 +27,9 @@ uint8_t grid[ROWS][COLS] = {0};
 uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
+typedef struct { int8_t x; int8_t y; } dir;
+typedef struct { uint8_t x; uint8_t y; } point;
+
 typedef struct {
     bool round;
     bool explodable;
@@ -45,6 +48,10 @@ typedef enum {
     TILE_EXP_1,
     TILE_EXP_2,
     TILE_EXP_3,
+    TILE_FIREFLY_U,
+    TILE_FIREFLY_D,
+    TILE_FIREFLY_L,
+    TILE_FIREFLY_R,
     TILE__LEN
 } tile_type;
 
@@ -60,6 +67,10 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EXP_1] = { false, false, false },
     [TILE_EXP_2] = { false, false, false },
     [TILE_EXP_3] = { false, false, false },
+    [TILE_FIREFLY_U] = { false, true, true },
+    [TILE_FIREFLY_D] = { false, true, true },
+    [TILE_FIREFLY_L] = { false, true, true },
+    [TILE_FIREFLY_R] = { false, true, true },
 };
 
 void esc(char* str) {
@@ -142,19 +153,42 @@ void update_grid(bool flash) {
                     uint8_t *cur = &(grid[y * 2 + j][x * 2 + i]);
                     if (flash) {
                         *cur = 51;
-                    } else if (t == TILE_EMPTY) {
-                        *cur = C_BLACK;
+                        continue;
                     }
-                    else if (t == TILE_ROCK || t == TILE_ROCK_FALLING) {
+
+                    switch (t) {
+                    case TILE_EMPTY: *cur = C_BLACK; break;
+                    case TILE_ROCK:
+                    case TILE_ROCK_FALLING:
                         *cur = i && !j ? 245: 244;
-                    }
-                    else if (t == TILE_DIAMOND || t == TILE_DIAMOND_FALLING) {
+                        break;
+                    case TILE_DIAMOND:
+                    case TILE_DIAMOND_FALLING:
                         *cur = i && !j ? 43: 44 + (rand() % 5);
-                    }
-                    else if (t == TILE_SAND) {
-                        *cur = 238;
-                    } else {
+                        break;
+                    case TILE_SAND: *cur = 238; break;
+                    case TILE_FIREFLY_U:
+                        *cur = 172 + (rand() % 5);
+                        if (i == 0 && j == 0) { *cur = 250; }
+                        break;
+                    case TILE_FIREFLY_D:
+                        *cur = 172 + (rand() % 5);
+                        if (i == 1 && j == 1) { *cur = 250; }
+                        break;
+                    case TILE_FIREFLY_L:
+                        *cur = 172 + (rand() % 5);
+                        if (i == 0 && j == 1) { *cur = 250; }
+                        break;
+                    case TILE_FIREFLY_R:
+                        *cur = 172 + (rand() % 5);
+                        if (i == 1 && j == 0) { *cur = 250; }
+                        break;
+                    case TILE_PLAYER:
+                        *cur = 226 + (rand() % 5);
+                        break;
+                    default:
                         *cur = rand()%16;
+                        break;
                     }
                 }
             }
@@ -169,12 +203,18 @@ void reset_level() {
                 tiles[j][i] = TILE_DIAMOND;
                 continue;
             }
-            if (rand() % 10 <= 6) {
+            uint8_t r = rand() % 100;
+
+            if (r < 80) {
                 tiles[j][i] = TILE_SAND;
                 continue;
             }
-            if (rand() % 10 < 9) {
+            if (r < 90) {
                 tiles[j][i] = TILE_ROCK;
+                continue;
+            }
+            if (r < 95) {
+                tiles[j][i] = TILE_FIREFLY_L;
                 continue;
             }
             tiles[j][i] = TILE_EMPTY;
@@ -286,6 +326,62 @@ bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     return false;
 }
 
+dir rotate_left(int8_t dx, int8_t dy) {
+    if (dy == -1) return (dir){ -1, 0 };
+    if (dx == -1) return (dir){ 0, 1 };
+    if (dy == 1) return (dir){ 1, 0 };
+    return (dir){ 0, -1 };
+}
+
+dir rotate_right(int8_t dx, int8_t dy) {
+    if (dy == -1) return (dir){ 1, 0 };
+    if (dx == 1) return (dir){ 0, 1 };
+    if (dy == 1) return (dir){ -1, 0 };
+    return (dir){ 0, -1 };
+}
+
+void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
+    set_tile(x, y, TILE_EMPTY);
+    set_tile(x + d.x, y + d.y, t);
+}
+
+tile_type get_firefly(dir d) {
+    if (d.y == -1) return TILE_FIREFLY_U;
+    if (d.x == 1) return TILE_FIREFLY_R;
+    if (d.y == 1) return TILE_FIREFLY_D;
+    return TILE_FIREFLY_L;
+}
+
+void update_firefly(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
+
+    dir d = { dx, dy };
+
+    // if touching player - explode
+    if (get_tile(x, y - 1) == TILE_PLAYER ||
+        get_tile(x, y + 1) == TILE_PLAYER ||
+        get_tile(x - 1, y) == TILE_PLAYER ||
+        get_tile(x + 1, y) == TILE_PLAYER) {
+        explode(x, y);
+        return;
+    }
+
+    // Try rotate left
+    dir rotL = rotate_left(dx, dy);
+    if (get_tile(x + rotL.x, y + rotL.y) == TILE_EMPTY) {
+        move_tile(x, y, rotL, get_firefly(rotL));
+        return;
+    }
+
+    // Try go straight
+    if (get_tile(x + dx, y + dy) == TILE_EMPTY) {
+        move_tile(x, y, d, get_firefly(d));
+        return;
+    }
+
+    // rotate right
+    set_tile(x, y, get_firefly(rotate_right(dx, dy)));
+}
+
 bool tick_grid(int8_t dx, int8_t dy) {
     bool flash = false;
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
@@ -310,6 +406,10 @@ bool tick_grid(int8_t dx, int8_t dy) {
             case TILE_EXP_1: set_tile(i, j, TILE_EXP_2); break;
             case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
             case TILE_EXP_3: set_tile(i, j, TILE_EMPTY); break;
+            case TILE_FIREFLY_U: update_firefly(i, j, 0, -1); break;
+            case TILE_FIREFLY_D: update_firefly(i, j, 0, 1); break;
+            case TILE_FIREFLY_L: update_firefly(i, j, -1, 0); break;
+            case TILE_FIREFLY_R: update_firefly(i, j, 1, 0); break;
             default:
                 break;
             }
