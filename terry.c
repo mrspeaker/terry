@@ -330,16 +330,31 @@ void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fa
 
 }
 
+void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
+    set_tile(x, y, TILE_EMPTY);
+    set_tile(x + d.x, y + d.y, t);
+}
+
+void push_rock(uint8_t x, uint8_t y, int8_t dx) {
+    tile_type t = get_tile(x + dx * 2, y);
+    if (t == TILE_EMPTY && rand() % 2 == 0) {
+        set_tile(x + dx * 2, y, TILE_ROCK);
+        set_tile(x + dx, y, TILE_PLAYER);
+        set_tile(x, y, TILE_EMPTY);
+    }
+}
+
 bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
         set_tile(x, y, TILE_EMPTY);
         set_tile(x + dx, y + dy, TILE_PLAYER);
-    }
-    if (t == TILE_DIAMOND) {
+    } else if (t == TILE_DIAMOND) {
         set_tile(x, y, TILE_EMPTY);
         set_tile(x + dx, y + dy, TILE_PLAYER);
         return true;
+    } else if (dx != 0 && t == TILE_ROCK) {
+        push_rock(x, y, dx);
     }
     return false;
 }
@@ -356,11 +371,6 @@ dir rotate_right(int8_t dx, int8_t dy) {
     if (dx == 1) return (dir){ 0, 1 };
     if (dy == 1) return (dir){ -1, 0 };
     return (dir){ 0, -1 };
-}
-
-void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
-    set_tile(x, y, TILE_EMPTY);
-    set_tile(x + d.x, y + d.y, t);
 }
 
 tile_type get_firefly(dir d) {
