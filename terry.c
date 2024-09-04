@@ -48,10 +48,12 @@ typedef enum {
     TILE_EXP_1,
     TILE_EXP_2,
     TILE_EXP_3,
+    TILE_EXP_4,
     TILE_FIREFLY_U,
     TILE_FIREFLY_D,
     TILE_FIREFLY_L,
     TILE_FIREFLY_R,
+    TILE_AMEOBA,
     TILE__LEN
 } tile_type;
 
@@ -67,10 +69,12 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EXP_1] = { false, false, false },
     [TILE_EXP_2] = { false, false, false },
     [TILE_EXP_3] = { false, false, false },
+    [TILE_EXP_4] = { false, false, false },
     [TILE_FIREFLY_U] = { false, true, true },
     [TILE_FIREFLY_D] = { false, true, true },
     [TILE_FIREFLY_L] = { false, true, true },
     [TILE_FIREFLY_R] = { false, true, true },
+    [TILE_AMEOBA] = { false, true, true },
 };
 
 void esc(char* str) {
@@ -193,6 +197,9 @@ void update_grid(bool flash) {
                     case TILE_PLAYER:
                         *cur = 226 + (rand() % 5);
                         break;
+                    case TILE_AMEOBA:
+                        *cur = 17 + (rand() % 5);
+                        break;
                     default:
                         *cur = rand()%(232-196)+197;
                         break;
@@ -220,8 +227,12 @@ void reset_level() {
                 tiles[j][i] = TILE_ROCK;
                 continue;
             }
-            if (r < 95) {
+            if (r < 94) {
                 tiles[j][i] = TILE_FIREFLY_L;
+                continue;
+            }
+            if (r < 99) {
+                tiles[j][i] = TILE_AMEOBA;
                 continue;
             }
             tiles[j][i] = TILE_EMPTY;
@@ -397,14 +408,21 @@ bool tick_grid(int8_t dx, int8_t dy) {
             if (tiles_ticked[j][i]) continue;
 
             uint8_t t = get_tile(i, j);
-
             if (t == TILE_EMPTY || t == TILE_BEDROCK || t == TILE_SAND) continue;
 
             switch (t) {
-            case TILE_ROCK: update_tile_rock(i, j, TILE_ROCK_FALLING); break;
-            case TILE_ROCK_FALLING: update_tile_rock_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING); break;
-            case TILE_DIAMOND: update_tile_rock(i, j, TILE_DIAMOND_FALLING); break;
-            case TILE_DIAMOND_FALLING: update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING); break;
+            case TILE_ROCK:
+                update_tile_rock(i, j, TILE_ROCK_FALLING);
+                break;
+            case TILE_ROCK_FALLING:
+                update_tile_rock_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING);
+                break;
+            case TILE_DIAMOND:
+                update_tile_rock(i, j, TILE_DIAMOND_FALLING);
+                break;
+            case TILE_DIAMOND_FALLING:
+                update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
+                break;
             case TILE_PLAYER:
                 if (update_player(i, j, dx, dy)) {
                     flash = true;
@@ -412,7 +430,8 @@ bool tick_grid(int8_t dx, int8_t dy) {
                 break;
             case TILE_EXP_1: set_tile(i, j, TILE_EXP_2); break;
             case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
-            case TILE_EXP_3: set_tile(i, j, TILE_EMPTY); break;
+            case TILE_EXP_3: set_tile(i, j, TILE_EXP_4); break;
+            case TILE_EXP_4: set_tile(i, j, TILE_EMPTY); break;
             case TILE_FIREFLY_U: update_firefly(i, j, 0, -1); break;
             case TILE_FIREFLY_D: update_firefly(i, j, 0, 1); break;
             case TILE_FIREFLY_L: update_firefly(i, j, -1, 0); break;
