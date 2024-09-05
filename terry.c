@@ -9,6 +9,11 @@
 
 #include "ansi_keys.h"
 
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
 #define max(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -168,10 +173,10 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
 }
 
 void update_grid(bool flash) {
-    uint8_t y1 = max(0, player_y - (SCR_TH / 2));
+    uint8_t y1 = min(SCR_TH, max(0, player_y - (SCR_TH / 2)));
     uint8_t y2 = y1 + SCR_TH;
 
-    uint8_t x1 = max(0, player_x - (SCR_TW / 2));
+    uint8_t x1 = min(SCR_TW, max(0, player_x - (SCR_TW / 2)));
     uint8_t x2 = x1 + SCR_TW;
 
     for (uint8_t y = y1; y < y2; y++) {
@@ -228,37 +233,6 @@ void update_grid(bool flash) {
     }
 }
 
-void reset_level() {
-    for (uint8_t j = 0; j < TILE_ROWS; j++) {
-        for (uint8_t i = 0; i < TILE_COLS; i++) {
-            if (j % 5 == 2 && i % 5 == 2) {
-                tiles[j][i] = TILE_DIAMOND;
-                continue;
-            }
-            uint8_t r = rand() % 100;
-
-            if (r < 80) {
-                tiles[j][i] = TILE_SAND;
-                continue;
-            }
-            if (r < 90) {
-                tiles[j][i] = TILE_ROCK;
-                continue;
-            }
-            if (r < 94) {
-                tiles[j][i] = TILE_FIREFLY_L;
-                continue;
-            }
-            if (r < 99) {
-                tiles[j][i] = TILE_AMOEBA;
-                continue;
-            }
-            tiles[j][i] = TILE_EMPTY;
-        }
-    }
-    tiles[5][5] = TILE_PLAYER;
-}
-
 uint8_t get_tile(uint8_t x, uint8_t y) {
     if (y >= TILE_ROWS || y < 0) return TILE_BEDROCK;
     if (x >= TILE_COLS || x < 0) return TILE_BEDROCK;
@@ -275,6 +249,37 @@ void set_tile(uint8_t x, uint8_t y, tile_type t) {
         player_x = x;
         player_y = y;
     }
+}
+
+void reset_level() {
+    for (uint8_t y = 0; y < TILE_ROWS; y++) {
+        for (uint8_t x = 0; x < TILE_COLS; x++) {
+            if (x % 5 == 2 && y % 5 == 2) {
+                set_tile(x, y, TILE_DIAMOND);
+                continue;
+            }
+            uint8_t r = rand() % 100;
+
+            if (r < 80) {
+                set_tile(x, y, TILE_SAND);
+                continue;
+            }
+            if (r < 90) {
+                set_tile(x, y, TILE_ROCK);
+                continue;
+            }
+            if (r < 94) {
+                set_tile(x, y, TILE_FIREFLY_L);
+                continue;
+            }
+            if (r < 99) {
+                set_tile(x, y, TILE_AMOEBA);
+                continue;
+            }
+            set_tile(x, y, TILE_EMPTY);
+        }
+    }
+    set_tile(5, 5, TILE_PLAYER);
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
@@ -433,8 +438,13 @@ void update_firefly(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     set_tile(x, y, get_firefly(rotate_right(dx, dy)));
 }
 
+void reset_ticked() {
+    memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
+}
+
 bool tick_grid(int8_t dx, int8_t dy) {
     bool flash = false;
+    reset_ticked();
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
             // Only process each cell once per tick
@@ -474,7 +484,6 @@ bool tick_grid(int8_t dx, int8_t dy) {
             }
         }
     }
-    memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
     return flash;
 }
 
