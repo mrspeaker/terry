@@ -9,8 +9,15 @@
 
 #include "ansi_keys.h"
 
-#define COLS 20 * 4
-#define ROWS 16 * 4
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+#define SCR_TW 20
+#define SCR_TH 16
+#define COLS SCR_TW * 4
+#define ROWS SCR_TH * 4
 
 #define C_BLACK 16
 #define C_WHITE 15
@@ -22,10 +29,15 @@ struct winsize win;
 
 uint8_t grid[ROWS][COLS] = {0};
 
-#define TILE_COLS COLS / 4
-#define TILE_ROWS ROWS / 4
+#define TILE_COLS SCR_TW * 2
+#define TILE_ROWS SCR_TH * 2
 uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
+
+uint8_t player_x = 0;
+uint8_t player_y = 0;
+uint8_t cam_x = 0;
+uint8_t cam_t = 0;
 
 typedef struct { int8_t x; int8_t y; } dir;
 typedef struct { uint8_t x; uint8_t y; } point;
@@ -156,12 +168,18 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
 }
 
 void update_grid(bool flash) {
-    for (uint8_t y = 0; y < TILE_ROWS; y++) {
-        for (uint8_t x = 0; x < TILE_COLS; x++) {
+    uint8_t y1 = max(0, player_y - (SCR_TH / 2));
+    uint8_t y2 = y1 + SCR_TH;
+
+    uint8_t x1 = max(0, player_x - (SCR_TW / 2));
+    uint8_t x2 = x1 + SCR_TW;
+
+    for (uint8_t y = y1; y < y2; y++) {
+        for (uint8_t x = x1; x < x2; x++) {
             tile_type t = tiles[y][x];
             for (uint8_t j = 0; j < 4; j++) {
                 for (uint8_t i = 0; i < 4; i++) {
-                    uint8_t *cur = &(grid[y * 4 + j][x * 4 + i]);
+                    uint8_t *cur = &(grid[(y - y1) * 4 + j][(x - x1) * 4 + i]);
                     if (flash) {
                         *cur = 51;
                         continue;
@@ -238,7 +256,7 @@ void reset_level() {
             tiles[j][i] = TILE_EMPTY;
         }
     }
-    tiles[TILE_ROWS/2][TILE_COLS/2] = TILE_PLAYER;
+    tiles[5][5] = TILE_PLAYER;
 }
 
 uint8_t get_tile(uint8_t x, uint8_t y) {
@@ -252,6 +270,11 @@ void set_tile(uint8_t x, uint8_t y, tile_type t) {
     if (x >= TILE_COLS || x < 0) return;
     tiles[y][x] = t;
     tiles_ticked[y][x] = true;
+
+    if (t == TILE_PLAYER) {
+        player_x = x;
+        player_y = y;
+    }
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
