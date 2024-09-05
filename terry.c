@@ -9,8 +9,8 @@
 
 #include "ansi_keys.h"
 
-#define COLS 40
-#define ROWS 40
+#define COLS 20 * 4
+#define ROWS 16 * 4
 
 #define C_BLACK 16
 #define C_WHITE 15
@@ -22,8 +22,8 @@ struct winsize win;
 
 uint8_t grid[ROWS][COLS] = {0};
 
-#define TILE_COLS COLS / 2
-#define TILE_ROWS ROWS / 2
+#define TILE_COLS COLS / 4
+#define TILE_ROWS ROWS / 4
 uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
@@ -53,7 +53,7 @@ typedef enum {
     TILE_FIREFLY_D,
     TILE_FIREFLY_L,
     TILE_FIREFLY_R,
-    TILE_AMEOBA,
+    TILE_AMOEBA,
     TILE__LEN
 } tile_type;
 
@@ -74,7 +74,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_FIREFLY_D] = { false, true, true },
     [TILE_FIREFLY_L] = { false, true, true },
     [TILE_FIREFLY_R] = { false, true, true },
-    [TILE_AMEOBA] = { false, true, true },
+    [TILE_AMOEBA] = { false, false, false },
 };
 
 void esc(char* str) {
@@ -125,7 +125,7 @@ void init() {
 
 void render_grid() {
     for (uint8_t j = 0; j < ROWS - 1; j+=2) {
-        cursor_to(scr_w / 2 - 20, scr_h / 2 - 8 + j / 2);
+        cursor_to(scr_w / 2 - (COLS / 2), scr_h / 2 - (ROWS/4) + j / 2 + 1);
         for (uint8_t i = 0; i < COLS; i++) {
             uint8_t top = grid[j][i];
             uint8_t bottom = grid[j + 1][i];
@@ -159,9 +159,9 @@ void update_grid(bool flash) {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
             tile_type t = tiles[y][x];
-            for (uint8_t j = 0; j < 2; j++) {
-                for (uint8_t i = 0; i < 2; i++) {
-                    uint8_t *cur = &(grid[y * 2 + j][x * 2 + i]);
+            for (uint8_t j = 0; j < 4; j++) {
+                for (uint8_t i = 0; i < 4; i++) {
+                    uint8_t *cur = &(grid[y * 4 + j][x * 4 + i]);
                     if (flash) {
                         *cur = 51;
                         continue;
@@ -197,7 +197,7 @@ void update_grid(bool flash) {
                     case TILE_PLAYER:
                         *cur = 226 + (rand() % 5);
                         break;
-                    case TILE_AMEOBA:
+                    case TILE_AMOEBA:
                         *cur = 17 + (rand() % 5);
                         break;
                     default:
@@ -232,7 +232,7 @@ void reset_level() {
                 continue;
             }
             if (r < 99) {
-                tiles[j][i] = TILE_AMEOBA;
+                tiles[j][i] = TILE_AMOEBA;
                 continue;
             }
             tiles[j][i] = TILE_EMPTY;
