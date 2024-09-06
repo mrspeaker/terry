@@ -20,7 +20,7 @@
      _a > _b ? _a : _b; })
 
 #define SCR_TW 20
-#define SCR_TH 16
+#define SCR_TH 12
 #define COLS SCR_TW * 4
 #define ROWS SCR_TH * 4
 
@@ -599,16 +599,16 @@ int main() {
         if (key_pressed('q', keys)) {
             running = false;
         }
-        if (key_down('w', keys)) {
+        if (key_down('w', keys) || key_down(ansi_special('A'), keys)) {
             dy = -1;
         }
-        if (key_down('s', keys)) {
+        if (key_down('s', keys) || key_down(ansi_special('B'), keys)) {
             dy = 1;
         }
-        if (key_down('a', keys)) {
+        if (key_down('a', keys) || key_down(ansi_special('D'), keys)) {
             dx = -1;
         }
-        if (key_down('d', keys)) {
+        if (key_down('d', keys) || key_down(ansi_special('C'), keys)) {
             dx = 1;
         }
         if (key_pressed(' ', keys)) {
