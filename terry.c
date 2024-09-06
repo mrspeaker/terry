@@ -209,6 +209,12 @@ void update_grid(bool flash) {
                     case TILE_DIAMOND:
                     case TILE_DIAMOND_FALLING:
                         *cur = i && !j ? 43: 44 + (rand() % 5);
+                        if ((i == 0 && j == 0) || (i == 0 && j== 3)) {
+                            *cur = 0x16;
+                        }
+                        else if ((i == 3 && j == 0) || (i == 3 && j== 3)) {
+                            *cur = 0xed;
+                        }
                         break;
                     case TILE_SAND: *cur = 0x16; break;
                     case TILE_FIREFLY_U:
