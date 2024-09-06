@@ -41,6 +41,7 @@ bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
 uint8_t player_x = 0;
 uint8_t player_y = 0;
+bool player_right = true;
 uint8_t cam_x = 0;
 uint8_t cam_t = 0;
 
@@ -195,30 +196,46 @@ void update_grid(bool flash) {
                     case TILE_ROCK:
                     case TILE_ROCK_FALLING:
                         *cur = i && !j ? 245: 244;
+                        if ((i == 0 && j == 0) || (i == 0 && j== 3)) {
+                            *cur = 0x16;
+                        }
+                        else if ((i == 3 && j == 0) || (i == 3 && j== 3)) {
+                            *cur = 0xed;
+                        }
+                        break;
+                    case TILE_BEDROCK:
+                        *cur = i && !j ? 236: 235;
                         break;
                     case TILE_DIAMOND:
                     case TILE_DIAMOND_FALLING:
                         *cur = i && !j ? 43: 44 + (rand() % 5);
                         break;
-                    case TILE_SAND: *cur = 238; break;
+                    case TILE_SAND: *cur = 0x16; break;
                     case TILE_FIREFLY_U:
-                        *cur = 172 + (rand() % 5);
+                        *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
                         break;
                     case TILE_FIREFLY_D:
-                        *cur = 172 + (rand() % 5);
+                        *cur = 0xc5 + (rand() % 5);
                         if (i == 1 && j == 1) { *cur = 250; }
                         break;
                     case TILE_FIREFLY_L:
-                        *cur = 172 + (rand() % 5);
+                        *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 1) { *cur = 250; }
                         break;
                     case TILE_FIREFLY_R:
-                        *cur = 172 + (rand() % 5);
+                        *cur = 0xc5 + (rand() % 5);
                         if (i == 1 && j == 0) { *cur = 250; }
                         break;
                     case TILE_PLAYER:
                         *cur = 226 + (rand() % 5);
+                        if (j == 1) {
+                            if (player_right) {
+                                if (i == 1 || i == 3) *cur = 0xcd;
+                            } else {
+                                if (i == 0 || i == 2) *cur = 0xcd;
+                            }
+                        }
                         break;
                     case TILE_AMOEBA:
                         *cur = 17 + (rand() % 5);
@@ -254,6 +271,10 @@ void set_tile(uint8_t x, uint8_t y, tile_type t) {
 void reset_level() {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
+            if (x == 0 || x == TILE_COLS - 1 || y == 0 || y == TILE_ROWS -1) {
+                set_tile(x, y, TILE_BEDROCK);
+                continue;
+            }
             if (x % 5 == 2 && y % 5 == 2) {
                 set_tile(x, y, TILE_DIAMOND);
                 continue;
@@ -373,6 +394,9 @@ void push_rock(uint8_t x, uint8_t y, int8_t dx) {
 }
 
 bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
+    if (dx > 0) player_right = true;
+    if (dx < 0) player_right = false;
+
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
         set_tile(x, y, TILE_EMPTY);
