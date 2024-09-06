@@ -173,6 +173,13 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return grid[y][x];
 }
 
+bool is_firefly(tile_type t) {
+    return t== TILE_FIREFLY_U ||
+        t == TILE_FIREFLY_D ||
+        t == TILE_FIREFLY_L ||
+        t == TILE_FIREFLY_R;
+}
+
 void update_grid(bool flash) {
     uint8_t y1 = min(SCR_TH, max(0, player_y - (SCR_TH / 2)));
     uint8_t y2 = y1 + SCR_TH;
@@ -285,21 +292,21 @@ void reset_level() {
                 set_tile(x, y, TILE_DIAMOND);
                 continue;
             }
-            uint8_t r = rand() % 100;
+            uint16_t r = rand() % 1000;
 
-            if (r < 80) {
+            if (r < 800) {
                 set_tile(x, y, TILE_SAND);
                 continue;
             }
-            if (r < 90) {
+            if (r < 900) {
                 set_tile(x, y, TILE_ROCK);
                 continue;
             }
-            if (r < 94) {
+            if (r < 940) {
                 set_tile(x, y, TILE_FIREFLY_L);
                 continue;
             }
-            if (r < 99) {
+            if (r < 970) {
                 set_tile(x, y, TILE_AMOEBA);
                 continue;
             }
@@ -362,18 +369,19 @@ void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fa
     if (d == TILE_EMPTY) {
         set_tile(i, j, TILE_EMPTY);
         set_tile(i, j + 1, fall);//TILE_ROCK_FALLING);
-      // explode things
+
+    // explode things
     } else if (td_d.explodable) {
-        //...
         explode(i, j + 1);
 
-        // Roll to the left
+    // Roll to the left
     } else if (td_d.round &&
                is_empty(i - 1, j) &&
                is_empty(i - 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
         set_tile(i - 1, j, fall);//TILE_ROCK_FALLING);
-        // Roll to the right
+
+    // Roll to the right
     } else if (td_d.round &&
                is_empty(i + 1, j) &&
                is_empty(i + 1, j + 1)) {
@@ -468,6 +476,17 @@ void update_firefly(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
     set_tile(x, y, get_firefly(rotate_right(dx, dy)));
 }
 
+void update_amoeba(uint8_t x, uint8_t y) {
+    // if touching player - explode
+    if (is_firefly(get_tile(x, y - 1)) ||
+        is_firefly(get_tile(x, y + 1)) ||
+        is_firefly(get_tile(x - 1, y)) ||
+        is_firefly(get_tile(x + 1, y))) {
+        explode(x, y);
+        return;
+    }
+}
+
 void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
@@ -509,6 +528,7 @@ bool tick_grid(int8_t dx, int8_t dy) {
             case TILE_FIREFLY_D: update_firefly(i, j, 0, 1); break;
             case TILE_FIREFLY_L: update_firefly(i, j, -1, 0); break;
             case TILE_FIREFLY_R: update_firefly(i, j, 1, 0); break;
+            case TILE_AMOEBA: update_amoeba(i, j);
             default:
                 break;
             }
