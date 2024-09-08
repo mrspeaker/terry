@@ -400,23 +400,27 @@ void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile(x + d.x, y + d.y, t);
 }
 
-void push_rock(uint8_t x, uint8_t y, int8_t dx) {
+void push_rock(uint8_t x, uint8_t y, int8_t dx, bool dig) {
     tile_type t = get_tile(x + dx * 2, y);
     if (t == TILE_EMPTY && rand() % 2 == 0) {
         set_tile(x + dx * 2, y, TILE_ROCK);
-        set_tile(x + dx, y, TILE_PLAYER);
-        set_tile(x, y, TILE_EMPTY);
+        if (dig) {
+            set_tile(x + dx, y, TILE_EMPTY);
+        } else {
+            set_tile(x + dx, y, TILE_PLAYER);
+            set_tile(x, y, TILE_EMPTY);
+        }
     }
 }
 
-bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig) {
+bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, uint8_t slot) {
     if (dx > 0) player_right = true;
     if (dx < 0) player_right = false;
 
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
         if (dig) {
-            set_tile(x + dx, y + dy, TILE_EMPTY);
+            set_tile(x + dx, y + dy, slot == 0 ? TILE_EMPTY : TILE_ROCK);
         } else {
             set_tile(x, y, TILE_EMPTY);
             set_tile(x + dx, y + dy, TILE_PLAYER);
@@ -431,7 +435,7 @@ bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig) {
         }
         return true;
     } else if (dx != 0 && t == TILE_ROCK) {
-        push_rock(x, y, dx);
+        push_rock(x, y, dx, dig);
     }
     return false;
 }
@@ -502,7 +506,7 @@ void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
 
-bool tick_grid(int8_t dx, int8_t dy, bool dig) {
+bool tick_grid(int8_t dx, int8_t dy, bool dig, uint8_t slot) {
     bool flash = false;
     reset_ticked();
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
@@ -527,7 +531,7 @@ bool tick_grid(int8_t dx, int8_t dy, bool dig) {
                 update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
                 break;
             case TILE_PLAYER:
-                if (update_player(i, j, dx, dy, dig)) {
+                if (update_player(i, j, dx, dy, dig, slot)) {
                     flash = true;
                 };
                 break;
@@ -596,6 +600,7 @@ int main() {
     int8_t dx = 0;
     int8_t dy = 0;
     bool dig = false;
+    int8_t slot = 0;
 
     uint32_t t = 0;
     int8_t flash = 0;
@@ -627,6 +632,12 @@ int main() {
         if (key_down(' ', keys)) {
             dig = true;
         }
+        if (key_pressed('1', keys)) {
+            slot = 0;
+        }
+        if (key_pressed('2', keys)) {
+            slot = 1;
+        }
         if (key_pressed('r', keys)) {
             key_unpress('r', keys);
             reset_level();
@@ -636,8 +647,8 @@ int main() {
         // Update
         t++;
 
-        if (t % 5 == 0) {
-            if (tick_grid(dx, dy, dig)) {
+        if (t % 4 == 0) {
+            if (tick_grid(dx, dy, dig, slot)) {
                 flash = 2;
             }
         }
@@ -646,6 +657,13 @@ int main() {
 
         // Render
         render_grid();
+
+        set_bg(C_BLACK);
+        set_fg(C_WHITE);
+        cursor_to(scr_w / 2 - (COLS / 2), (scr_h / 2) + (ROWS / 4) + 1);
+        printf("wsad. spc. 0=dig, 1=rock. cur:");
+        printf(slot == 0 ? "dig " : "rock");
+
 
         fflush(stdout);
         usleep(delay);
