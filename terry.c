@@ -95,6 +95,8 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_AMOEBA] = { false, false, false },
 };
 
+void done(int signum);
+
 void esc(char* str) {
     printf("\e[%s", str);
 }
@@ -407,17 +409,26 @@ void push_rock(uint8_t x, uint8_t y, int8_t dx) {
     }
 }
 
-bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
+bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig) {
     if (dx > 0) player_right = true;
     if (dx < 0) player_right = false;
 
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
-        set_tile(x, y, TILE_EMPTY);
-        set_tile(x + dx, y + dy, TILE_PLAYER);
+        if (dig) {
+            set_tile(x + dx, y + dy, TILE_EMPTY);
+        } else {
+            set_tile(x, y, TILE_EMPTY);
+            set_tile(x + dx, y + dy, TILE_PLAYER);
+        }
     } else if (t == TILE_DIAMOND) {
-        set_tile(x, y, TILE_EMPTY);
-        set_tile(x + dx, y + dy, TILE_PLAYER);
+        if (dig) {
+            set_tile(x + dx, y + dy, TILE_EMPTY);
+        }
+        else {
+            set_tile(x, y, TILE_EMPTY);
+            set_tile(x + dx, y + dy, TILE_PLAYER);
+        }
         return true;
     } else if (dx != 0 && t == TILE_ROCK) {
         push_rock(x, y, dx);
@@ -477,7 +488,7 @@ void update_firefly(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
-    // if touching player - explode
+    // if touching firefly - explode
     if (is_firefly(get_tile(x, y - 1)) ||
         is_firefly(get_tile(x, y + 1)) ||
         is_firefly(get_tile(x - 1, y)) ||
@@ -491,7 +502,7 @@ void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
 
-bool tick_grid(int8_t dx, int8_t dy) {
+bool tick_grid(int8_t dx, int8_t dy, bool dig) {
     bool flash = false;
     reset_ticked();
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
@@ -516,7 +527,7 @@ bool tick_grid(int8_t dx, int8_t dy) {
                 update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
                 break;
             case TILE_PLAYER:
-                if (update_player(i, j, dx, dy)) {
+                if (update_player(i, j, dx, dy, dig)) {
                     flash = true;
                 };
                 break;
@@ -584,6 +595,7 @@ int main() {
 
     int8_t dx = 0;
     int8_t dy = 0;
+    bool dig = false;
 
     uint32_t t = 0;
     int8_t flash = 0;
@@ -594,6 +606,7 @@ int main() {
     while(running){
         dx = 0; // stop moving
         dy = 0;
+        dig = false;
 
         update_ansi_keys(keys);
         if (key_pressed('q', keys)) {
@@ -611,8 +624,11 @@ int main() {
         if (key_down('d', keys) || key_down(ansi_special('C'), keys)) {
             dx = 1;
         }
-        if (key_pressed(' ', keys)) {
-            key_unpress(' ', keys);
+        if (key_down(' ', keys)) {
+            dig = true;
+        }
+        if (key_pressed('r', keys)) {
+            key_unpress('r', keys);
             reset_level();
         }
         if (dx != 0) dy = 0;
@@ -621,7 +637,7 @@ int main() {
         t++;
 
         if (t % 5 == 0) {
-            if (tick_grid(dx, dy)) {
+            if (tick_grid(dx, dy, dig)) {
                 flash = 2;
             }
         }
