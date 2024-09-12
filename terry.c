@@ -21,8 +21,10 @@
 
 #define SCR_TW 20
 #define SCR_TH 12
-#define COLS SCR_TW * 4
-#define ROWS SCR_TH * 4
+
+#define px_per_tile 4
+#define PIX_W SCR_TW * px_per_tile
+#define PIX_H SCR_TH * px_per_tile
 
 #define C_BLACK 16
 #define C_WHITE 15
@@ -32,10 +34,10 @@ uint16_t scr_w = 0;
 uint16_t scr_h = 0;
 struct winsize win;
 
-uint8_t grid[ROWS][COLS] = {0};
+uint8_t pixels[PIX_H][PIX_W] = {0};
 
-#define TILE_COLS SCR_TW * 2
-#define TILE_ROWS SCR_TH * 2
+#define TILE_COLS ((SCR_TW * 2)+1)
+#define TILE_ROWS ((SCR_TH * 2)+1)
 uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
@@ -129,10 +131,10 @@ void print_half_block() {
     printf("\u2580"); // Upper Half Block "▀"
 }
 
-void init_grid() {
-    for (uint8_t j = 0; j < ROWS; j++) {
-        for (uint8_t i = 0; i < COLS; i++) {
-            grid[j][i] = 0;
+void init_pixels() {
+    for (uint8_t j = 0; j < PIX_H; j++) {
+        for (uint8_t i = 0; i < PIX_W; i++) {
+            pixels[j][i] = 0;
         }
     }
 }
@@ -140,15 +142,15 @@ void init_grid() {
 void init() {
     init_ansi_keys(true);
     esc("?25l"); // hide cursor
-    init_grid();
+    init_pixels();
 }
 
-void render_grid() {
-    for (uint8_t j = 0; j < ROWS - 1; j+=2) {
-        cursor_to(scr_w / 2 - (COLS / 2), scr_h / 2 - (ROWS/4) + j / 2 + 1);
-        for (uint8_t i = 0; i < COLS; i++) {
-            uint8_t top = grid[j][i];
-            uint8_t bottom = grid[j + 1][i];
+void render_pixels() {
+    for (uint8_t j = 0; j < PIX_H - 1; j+=2) {
+        cursor_to(scr_w / 2 - (PIX_W / 2), scr_h / 2 - (PIX_H/4) + j / 2 + 1);
+        for (uint8_t i = 0; i < PIX_W; i++) {
+            uint8_t top = pixels[j][i];
+            uint8_t bottom = pixels[j + 1][i];
 
             set_fg(top);
             set_bg(bottom);
@@ -170,9 +172,9 @@ void render_grid() {
 }
 
 uint8_t get_cell(uint8_t x, uint8_t y) {
-    if (y >= ROWS || y < 0) return 0;
-    if (x >= COLS || x < 0) return 0;
-    return grid[y][x];
+    if (y >= PIX_H || y < 0) return 0;
+    if (x >= PIX_W || x < 0) return 0;
+    return pixels[y][x];
 }
 
 bool is_firefly(tile_type t) {
@@ -182,21 +184,39 @@ bool is_firefly(tile_type t) {
         t == TILE_FIREFLY_R;
 }
 
-void update_grid(bool flash) {
-    uint8_t y1 = min(SCR_TH, max(0, player_y - (SCR_TH / 2)));
+uint8_t get_tile(uint8_t x, uint8_t y) {
+    if (y >= TILE_ROWS || y < 0) return TILE_BEDROCK;
+    if (x >= TILE_COLS || x < 0) return TILE_BEDROCK;
+    return tiles[y][x];
+}
+
+void set_tile(uint8_t x, uint8_t y, tile_type t) {
+    if (y > TILE_ROWS || y < 0) return;
+    if (x > TILE_COLS || x < 0) return;
+    tiles[y][x] = t;
+    tiles_ticked[y][x] = true;
+
+    if (t == TILE_PLAYER) {
+        player_x = x;
+        player_y = y;
+    }
+}
+
+void update_pixels(bool flash) {
+    uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, player_y - (SCR_TH / 2)));
     uint8_t y2 = y1 + SCR_TH;
 
-    uint8_t x1 = min(SCR_TW, max(0, player_x - (SCR_TW / 2)));
+    uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, player_x - (SCR_TW / 2)));
     uint8_t x2 = x1 + SCR_TW;
 
     for (uint8_t y = y1; y < y2; y++) {
         for (uint8_t x = x1; x < x2; x++) {
-            tile_type t = tiles[y][x];
-            for (uint8_t j = 0; j < 4; j++) {
-                for (uint8_t i = 0; i < 4; i++) {
-                    uint8_t *cur = &(grid[(y - y1) * 4 + j][(x - x1) * 4 + i]);
+            tile_type t = get_tile(x, y);
+            for (uint8_t j = 0; j < px_per_tile; j++) {
+                for (uint8_t i = 0; i < px_per_tile; i++) {
+                    uint8_t *cur = &(pixels[(y - y1) * px_per_tile + j][(x - x1) * px_per_tile + i]);
                     if (flash) {
-                        *cur = 51;
+                        *cur = 48 + (rand() % 3);
                         continue;
                     }
 
@@ -265,24 +285,6 @@ void update_grid(bool flash) {
     }
 }
 
-uint8_t get_tile(uint8_t x, uint8_t y) {
-    if (y >= TILE_ROWS || y < 0) return TILE_BEDROCK;
-    if (x >= TILE_COLS || x < 0) return TILE_BEDROCK;
-    return tiles[y][x];
-}
-
-void set_tile(uint8_t x, uint8_t y, tile_type t) {
-    if (y >= TILE_ROWS || y < 0) return;
-    if (x >= TILE_COLS || x < 0) return;
-    tiles[y][x] = t;
-    tiles_ticked[y][x] = true;
-
-    if (t == TILE_PLAYER) {
-        player_x = x;
-        player_y = y;
-    }
-}
-
 void reset_level() {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
@@ -317,7 +319,7 @@ void reset_level() {
     }
 
     // add some horizontal random line segments
-    uint8_t num_h = (rand() % 10) + 5;
+    uint8_t num_h = (rand() % 5) + 5;
     for (uint8_t i = 0; i < num_h; i++) {
         uint8_t start = rand() % TILE_COLS;
         uint8_t len = 6;
@@ -326,11 +328,12 @@ void reset_level() {
             set_tile(j, yo, TILE_BEDROCK);
         }
     }
-    uint8_t num_v = (rand() % 10) + 5;
+    // add some vertical random line segments
+    uint8_t num_v = (rand() % 5) + 5;
     for (uint8_t i = 0; i < num_v; i++) {
         uint8_t start = rand() % TILE_ROWS;
         uint8_t len = 5;
-        uint8_t xo = (rand() % ((TILE_COLS - 2) / 2)) * 2;
+        uint8_t xo = (rand() % ((TILE_COLS - 1) / 2)) * 2;
         for (uint8_t j = start; j < start + len; j++) {
             set_tile(xo, j, TILE_BEDROCK);
         }
@@ -527,7 +530,7 @@ void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
 
-bool tick_grid(int8_t dx, int8_t dy, bool dig, uint8_t slot) {
+bool tick_tiles(int8_t dx, int8_t dy, bool dig, uint8_t slot) {
     bool flash = false;
     reset_ticked();
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
@@ -669,19 +672,19 @@ int main() {
         t++;
 
         if (t % 4 == 0) {
-            if (tick_grid(dx, dy, dig, slot)) {
+            if (tick_tiles(dx, dy, dig, slot)) {
                 flash = 2;
             }
         }
-        update_grid(flash > 0);
+        update_pixels(flash > 0);
         if (--flash < 0) flash = 0;
 
         // Render
-        render_grid();
+        render_pixels();
 
         set_bg(C_BLACK);
         set_fg(C_WHITE);
-        cursor_to(scr_w / 2 - (COLS / 2), (scr_h / 2) + (ROWS / 4) + 1);
+        cursor_to(scr_w / 2 - (PIX_W / 2), (scr_h / 2) + (PIX_H / 4) + 1);
         printf("wsad. spc. 0=dig, 1=rock. cur:");
         printf(slot == 0 ? "dig " : "rock");
 
