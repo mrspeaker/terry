@@ -317,20 +317,20 @@ void reset_level() {
     }
 
     // add some horizontal random line segments
-    uint8_t num_h = rand() % 10;
+    uint8_t num_h = (rand() % 10) + 5;
     for (uint8_t i = 0; i < num_h; i++) {
         uint8_t start = rand() % TILE_COLS;
         uint8_t len = 6;
-        uint8_t yo = rand() % TILE_ROWS;
+        uint8_t yo = (rand() % ((TILE_ROWS - 2) / 2)) * 2;
         for (uint8_t j = start; j < start + len; j++) {
             set_tile(j, yo, TILE_BEDROCK);
         }
     }
-    uint8_t num_v = rand() % 10;
+    uint8_t num_v = (rand() % 10) + 5;
     for (uint8_t i = 0; i < num_v; i++) {
         uint8_t start = rand() % TILE_ROWS;
         uint8_t len = 5;
-        uint8_t xo = rand() % TILE_COLS;
+        uint8_t xo = (rand() % ((TILE_COLS - 2) / 2)) * 2;
         for (uint8_t j = start; j < start + len; j++) {
             set_tile(xo, j, TILE_BEDROCK);
         }
