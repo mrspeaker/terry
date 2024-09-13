@@ -113,6 +113,8 @@ const uint8_t pal[] = {
     [5] = C_DARKGREY,
     [6] = C_MIDGREY,
     [7] = C_LIGHTGREY,
+    [8] = 51,
+    [9] = 43
 };
 
 const uint8_t tile_gfx[][16] = {
@@ -121,6 +123,18 @@ const uint8_t tile_gfx[][16] = {
         6,6,6,7,
         5,6,6,6,
         4,5,5,4
+    },
+    [TILE_SAND] = {
+        4,4,4,4,
+        4,4,4,4,
+        4,4,4,4,
+        4,4,4,4,
+    },
+    [TILE_DIAMOND] = {
+        4,8,8,4,
+        9,8,8,8,
+        9,9,8,8,
+        4,9,9,4,
     },
 };
 
@@ -238,30 +252,17 @@ void update_pixels(bool flash) {
                     case TILE_EMPTY: *cur = C_BLACK; break;
                     case TILE_ROCK:
                     case TILE_ROCK_FALLING:
-                        *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]] ; break;
-
-                        /**cur = i && !j ? 245: 244;
-                        if ((i == 0 && j == 0) || (i == 0 && j== 3)) {
-                            *cur = 0x16;
-                        }
-                        else if ((i == 3 && j == 0) || (i == 3 && j== 3)) {
-                            *cur = 0xed;
-                            }*/
+                        *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]]; break;
                         break;
                     case TILE_BEDROCK:
                         *cur = i && !j ? 236: 235;
                         break;
                     case TILE_DIAMOND:
                     case TILE_DIAMOND_FALLING:
-                        *cur = i && !j ? 43: 44 + (rand() % 5);
-                        if ((i == 0 && j == 0) || (i == 0 && j== 3)) {
-                            *cur = 0x16;
-                        }
-                        else if ((i == 3 && j == 0) || (i == 3 && j== 3)) {
-                            *cur = 0xed;
-                        }
+                        *cur = pal[tile_gfx[TILE_DIAMOND][j * 4 + i]]; break;
                         break;
-                    case TILE_SAND: *cur = C_DARKGREEN; break;
+                    case TILE_SAND:
+                        *cur = pal[tile_gfx[TILE_SAND][j * 4 + i]]; break;
                     case TILE_FIREFLY_U:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
@@ -701,7 +702,7 @@ int main() {
         set_bg(C_BLACK);
         set_fg(C_WHITE);
         cursor_to(scr_w / 2 - (PIX_W / 2), (scr_h / 2) + (PIX_H / 4) + 1);
-        printf("wsad. spc. 0=dig, 1=rock. cur:");
+        printf("move: wsad | r: restart | spc: 0=dig, 1=rock | cur: ");
         printf(slot == 0 ? "dig " : "rock");
 
 
