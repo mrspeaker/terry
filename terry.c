@@ -28,6 +28,13 @@
 
 #define C_BLACK 16
 #define C_WHITE 15
+#define C_DARKBLUE 17
+#define C_DARKGREEN 22
+#define C_MAROON 53
+#define C_DARKGREY 237
+#define C_MIDGREY 245
+#define C_LIGHTGREY 250
+
 #define delay 1000000 / 30
 
 uint16_t scr_w = 0;
@@ -97,6 +104,26 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_AMOEBA] = { false, false, false },
 };
 
+const uint8_t pal[] = {
+    [0] = C_BLACK,
+    [1] = C_WHITE,
+    [2] = C_DARKBLUE,
+    [3] = C_MAROON,
+    [4] = C_DARKGREEN,
+    [5] = C_DARKGREY,
+    [6] = C_MIDGREY,
+    [7] = C_LIGHTGREY,
+};
+
+const uint8_t tile_gfx[][16] = {
+    [TILE_ROCK] = {
+        4,7,7,4,
+        6,6,6,7,
+        5,6,6,6,
+        4,5,5,4
+    },
+};
+
 void done(int signum);
 
 void esc(char* str) {
@@ -151,21 +178,8 @@ void render_pixels() {
         for (uint8_t i = 0; i < PIX_W; i++) {
             uint8_t top = pixels[j][i];
             uint8_t bottom = pixels[j + 1][i];
-
             set_fg(top);
             set_bg(bottom);
-
-            if (top == bottom) {
-                if (top == 238) {
-                    // sand
-                    set_fg(top+1);
-                    // ▙ ░ ▒ ▓
-                    printf("▚");
-                } else {
-                    printf(" ");
-                }
-                continue;
-            }
             print_half_block();
         }
     }
@@ -224,13 +238,15 @@ void update_pixels(bool flash) {
                     case TILE_EMPTY: *cur = C_BLACK; break;
                     case TILE_ROCK:
                     case TILE_ROCK_FALLING:
-                        *cur = i && !j ? 245: 244;
+                        *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]] ; break;
+
+                        /**cur = i && !j ? 245: 244;
                         if ((i == 0 && j == 0) || (i == 0 && j== 3)) {
                             *cur = 0x16;
                         }
                         else if ((i == 3 && j == 0) || (i == 3 && j== 3)) {
                             *cur = 0xed;
-                        }
+                            }*/
                         break;
                     case TILE_BEDROCK:
                         *cur = i && !j ? 236: 235;
@@ -245,7 +261,7 @@ void update_pixels(bool flash) {
                             *cur = 0xed;
                         }
                         break;
-                    case TILE_SAND: *cur = 0x16; break;
+                    case TILE_SAND: *cur = C_DARKGREEN; break;
                     case TILE_FIREFLY_U:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
