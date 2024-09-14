@@ -60,7 +60,7 @@ typedef struct { uint8_t x; uint8_t y; } point;
 typedef struct {
     bool round;
     bool explodable;
-    bool digable;
+    bool consumable;
 } tile_deets;
 
 typedef enum {
@@ -69,6 +69,7 @@ typedef enum {
     TILE_PLAYER,
     TILE_ROCK,
     TILE_ROCK_FALLING,
+    TILE_SANDSTONE,
     TILE_SAND,
     TILE_DIAMOND,
     TILE_DIAMOND_FALLING,
@@ -90,6 +91,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_PLAYER] = { false, true, true },
     [TILE_ROCK] = { true, false, true },
     [TILE_ROCK_FALLING] = { false, false, true },
+    [TILE_SANDSTONE] = { true, false, true },
     [TILE_SAND] = { true, false, true },
     [TILE_DIAMOND] = { true, false, true },
     [TILE_DIAMOND_FALLING] = { false, false, true },
@@ -124,11 +126,11 @@ const uint8_t tile_gfx[][16] = {
         5,6,6,6,
         4,5,5,4
     },
-    [TILE_SAND] = {
-        4,4,4,4,
-        4,4,4,4,
-        4,4,4,4,
-        4,4,4,4,
+    [TILE_SANDSTONE] = {
+        4,6,7,4,
+        6,5,6,7,
+        5,6,5,6,
+        5,5,6,4,
     },
     [TILE_DIAMOND] = {
         4,8,8,4,
@@ -262,7 +264,9 @@ void update_pixels(bool flash) {
                         *cur = pal[tile_gfx[TILE_DIAMOND][j * 4 + i]]; break;
                         break;
                     case TILE_SAND:
-                        *cur = pal[tile_gfx[TILE_SAND][j * 4 + i]]; break;
+                        *cur = pal[4]; break;
+                    case TILE_SANDSTONE:
+                        *cur = pal[tile_gfx[TILE_SANDSTONE][j * 4 + i]]; break;
                     case TILE_FIREFLY_U:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
@@ -321,6 +325,9 @@ void reset_level() {
             }
             if (r < 900) {
                 set_tile(x, y, TILE_ROCK);
+                if ((rand() % 10) == 1) {
+                    set_tile(x, y, TILE_SANDSTONE);
+                }
                 continue;
             }
             if (r < 940) {
@@ -376,7 +383,7 @@ void explode(uint8_t x, uint8_t y) {
             tile_deets td = tiledefs[t];
             if (td.explodable) {
                 explode(x + i, y + j);
-            } else if (td.digable) {
+            } else if (td.consumable) {
                 set_tile(x + i, y + j, TILE_EXP_1);
             }
         }
@@ -441,14 +448,15 @@ void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile(x + d.x, y + d.y, t);
 }
 
-void push_rock(uint8_t x, uint8_t y, int8_t dx, bool dig) {
-    tile_type t = get_tile(x + dx * 2, y);
-    if (t == TILE_EMPTY && rand() % 2 == 0) {
-        set_tile(x + dx * 2, y, TILE_ROCK);
+void push_block(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, tile_type ot) {
+    tile_type t = get_tile(x + dx * 2, y + dy * 2);
+    if (rand() % 2 == 1) return; // random struggle-to-push
+    if (t == TILE_EMPTY || t == TILE_SAND) {
+        set_tile(x + dx * 2, y + dy * 2, ot);
         if (dig) {
-            set_tile(x + dx, y, TILE_EMPTY);
+            set_tile(x + dx, y + dy, TILE_EMPTY);
         } else {
-            set_tile(x + dx, y, TILE_PLAYER);
+            set_tile(x + dx, y + dy, TILE_PLAYER);
             set_tile(x, y, TILE_EMPTY);
         }
     }
@@ -475,8 +483,10 @@ bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, uint8_t
             set_tile(x + dx, y + dy, TILE_PLAYER);
         }
         return true;
-    } else if (dx != 0 && t == TILE_ROCK) {
-        push_rock(x, y, dx, dig);
+    } else if (t == TILE_ROCK && (dx != 0 || dy != 0)) {
+        push_block(x, y, dx, dy, dig, TILE_ROCK);
+    } else if (t == TILE_SANDSTONE && (dx != 0 || dy != 0)) {
+        push_block(x, y, dx, dy, dig, TILE_SANDSTONE);
     }
     return false;
 }
