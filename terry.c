@@ -188,7 +188,7 @@ void init() {
 
 void render_pixels() {
     for (uint8_t j = 0; j < PIX_H - 1; j+=2) {
-        cursor_to(scr_w / 2 - (PIX_W / 2), scr_h / 2 - (PIX_H/4) + j / 2 + 1);
+        cursor_to(scr_w / 2 - (PIX_W / 2), scr_h / 2 - (PIX_H / 4) + j / 2 + 1);
         for (uint8_t i = 0; i < PIX_W; i++) {
             uint8_t top = pixels[j][i];
             uint8_t bottom = pixels[j + 1][i];
@@ -422,7 +422,7 @@ void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fa
                is_empty(i - 1, j) &&
                is_empty(i - 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i - 1, j, fall);//TILE_ROCK_FALLING);
+        set_tile(i - 1, j, fall); //TILE_ROCK_FALLING);
 
     // Roll to the right
     } else if (td_d.round &&
@@ -539,7 +539,7 @@ void update_amoeba(uint8_t x, uint8_t y) {
         is_firefly(get_tile(x - 1, y)) ||
         is_firefly(get_tile(x + 1, y))) {
         explode(x, y);
-        return;
+        set_tile(x, y, TILE_DIAMOND);
     }
 }
 
