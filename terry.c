@@ -57,12 +57,6 @@ uint8_t cam_t = 0;
 typedef struct { int8_t x; int8_t y; } dir;
 typedef struct { uint8_t x; uint8_t y; } point;
 
-typedef struct {
-    bool round;
-    bool explodable;
-    bool consumable;
-} tile_deets;
-
 typedef enum {
     TILE_EMPTY,
     TILE_BEDROCK,
@@ -73,6 +67,8 @@ typedef enum {
     TILE_SAND,
     TILE_DIAMOND,
     TILE_DIAMOND_FALLING,
+    TILE_BALLOON,
+    TILE_BALLOON_RISING,
     TILE_EXP_1,
     TILE_EXP_2,
     TILE_EXP_3,
@@ -85,6 +81,12 @@ typedef enum {
     TILE__LEN
 } tile_type;
 
+typedef struct {
+    bool round;
+    bool explodable;
+    bool consumable;
+} tile_deets;
+
 const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EMPTY] = { false, false, true },
     [TILE_BEDROCK] = { true, false, false },
@@ -95,6 +97,8 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_SAND] = { true, false, true },
     [TILE_DIAMOND] = { true, false, true },
     [TILE_DIAMOND_FALLING] = { false, false, true },
+    [TILE_BALLOON] = { true, false, true },
+    [TILE_BALLOON_RISING] = { false, false, true },
     [TILE_EXP_1] = { false, false, false },
     [TILE_EXP_2] = { false, false, false },
     [TILE_EXP_3] = { false, false, false },
@@ -137,6 +141,12 @@ const uint8_t tile_gfx[][16] = {
         9,8,8,8,
         9,9,8,8,
         4,9,9,4,
+    },
+    [TILE_BALLOON] = {
+        4,3,3,4,
+        3,3,3,3,
+        5,3,3,5,
+        4,3,3,4,
     },
 };
 
@@ -267,6 +277,9 @@ void update_pixels(bool flash) {
                         *cur = pal[4]; break;
                     case TILE_SANDSTONE:
                         *cur = pal[tile_gfx[TILE_SANDSTONE][j * 4 + i]]; break;
+                    case TILE_BALLOON:
+                    case TILE_BALLOON_RISING:
+                        *cur = pal[tile_gfx[TILE_BALLOON][j * 4 + i]]; break;
                     case TILE_FIREFLY_U:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
@@ -327,6 +340,9 @@ void reset_level() {
                 set_tile(x, y, TILE_ROCK);
                 if ((rand() % 10) == 1) {
                     set_tile(x, y, TILE_SANDSTONE);
+                }
+                if ((rand() % 10) == 1) {
+                    set_tile(x, y, TILE_BALLOON);
                 }
                 continue;
             }
@@ -390,55 +406,107 @@ void explode(uint8_t x, uint8_t y) {
     }
 }
 
-void update_tile_rock(uint8_t i, uint8_t j, tile_type fall) {
-    tile_type d = get_tile(i, j + 1);
-    tile_deets td_d = tiledefs[d];
+void update_tile_fallable(uint8_t i, uint8_t j, tile_type t) {
+    tile_type dn = get_tile(i, j + 1);
+    tile_deets td_dn = tiledefs[dn];
 
-    if (d == TILE_EMPTY) {
-        set_tile(i, j, fall);//TILE_ROCK_FALLING);
+    if (dn == TILE_EMPTY) {
+        set_tile(i, j, t);
         // Roll to the left
-    } else if (td_d.round &&
+    } else if (td_dn.round &&
                is_empty(i - 1, j) &&
                is_empty(i - 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i - 1, j, fall);//TILE_ROCK_FALLING);
+        set_tile(i - 1, j, t);
         // Roll to the right
-    } else if (td_d.round &&
+    } else if (td_dn.round &&
                is_empty(i + 1, j) &&
                is_empty(i + 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i + 1, j, fall);//TILE_ROCK_FALLING);
+        set_tile(i + 1, j, t);
     }
 }
 
-void update_tile_rock_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
-    tile_type d = get_tile(i, j + 1);
-    tile_deets td_d = tiledefs[d];
+void update_tile_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
+    tile_type dn = get_tile(i, j + 1);
+    tile_deets td_dn = tiledefs[dn];
 
     // Straight down
-    if (d == TILE_EMPTY) {
+    if (dn == TILE_EMPTY) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i, j + 1, fall);//TILE_ROCK_FALLING);
+        set_tile(i, j + 1, fall);
 
     // explode things
-    } else if (td_d.explodable) {
+    } else if (td_dn.explodable) {
         explode(i, j + 1);
 
     // Roll to the left
-    } else if (td_d.round &&
+    } else if (td_dn.round &&
                is_empty(i - 1, j) &&
                is_empty(i - 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i - 1, j, fall); //TILE_ROCK_FALLING);
+        set_tile(i - 1, j, fall);
 
     // Roll to the right
-    } else if (td_d.round &&
+    } else if (td_dn.round &&
                is_empty(i + 1, j) &&
                is_empty(i + 1, j + 1)) {
         set_tile(i, j, TILE_EMPTY);
-        set_tile(i + 1, j, fall);//TILE_ROCK_FALLING);
+        set_tile(i + 1, j, fall);
     } else {
-        set_tile(i, j, rest);//TILE_ROCK);
+        set_tile(i, j, rest);
+    }
+}
+
+void update_tile_riseable(uint8_t i, uint8_t j, tile_type t) {
+    tile_type up = get_tile(i, j - 1);
+    tile_deets td_up = tiledefs[up];
+
+    if (up == TILE_EMPTY) {
+        set_tile(i, j, t);
+        // Roll to the left
+    } else if (td_up.round &&
+               is_empty(i - 1, j) &&
+               is_empty(i - 1, j - 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i - 1, j, t);
+        // Roll to the right
+    } else if (td_up.round &&
+               is_empty(i + 1, j) &&
+               is_empty(i + 1, j - 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i + 1, j, t);
+    }
+}
+
+void update_tile_rising(uint8_t i, uint8_t j, tile_type rest, tile_type rise) {
+    tile_type up = get_tile(i, j - 1);
+    tile_deets td_up = tiledefs[up];
+
+    // Straight up
+    if (up == TILE_EMPTY) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i, j - 1, rise);
+
+    // explode things
+    } else if (td_up.explodable) {
+        explode(i, j - 1);
+
+    // Rise to the left
+    } else if (td_up.round &&
+               is_empty(i - 1, j) &&
+               is_empty(i - 1, j - 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i - 1, j, rise);
+
+    // Roll to the right
+    } else if (td_up.round &&
+               is_empty(i + 1, j) &&
+               is_empty(i + 1, j - 1)) {
+        set_tile(i, j, TILE_EMPTY);
+        set_tile(i + 1, j, rise);
+    } else {
+        set_tile(i, j, rest);
     }
 
 }
@@ -465,6 +533,7 @@ void push_block(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, tile_type 
 bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, uint8_t slot) {
     if (dx > 0) player_right = true;
     if (dx < 0) player_right = false;
+    bool pushing = dx != 0 || dy != 0;
 
     tile_type t = get_tile(x + dx, y + dy);
     if (t == TILE_EMPTY || t == TILE_SAND) {
@@ -483,10 +552,8 @@ bool update_player(uint8_t x, uint8_t y, int8_t dx, int8_t dy, bool dig, uint8_t
             set_tile(x + dx, y + dy, TILE_PLAYER);
         }
         return true;
-    } else if (t == TILE_ROCK && (dx != 0 || dy != 0)) {
-        push_block(x, y, dx, dy, dig, TILE_ROCK);
-    } else if (t == TILE_SANDSTONE && (dx != 0 || dy != 0)) {
-        push_block(x, y, dx, dy, dig, TILE_SANDSTONE);
+    } else if (pushing && (t == TILE_ROCK || t == TILE_SANDSTONE || t == TILE_BALLOON)) {
+        push_block(x, y, dx, dy, dig, t);
     }
     return false;
 }
@@ -570,16 +637,22 @@ bool tick_tiles(int8_t dx, int8_t dy, bool dig, uint8_t slot) {
 
             switch (t) {
             case TILE_ROCK:
-                update_tile_rock(i, j, TILE_ROCK_FALLING);
+                update_tile_fallable(i, j, TILE_ROCK_FALLING);
                 break;
             case TILE_ROCK_FALLING:
-                update_tile_rock_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING);
+                update_tile_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING);
                 break;
             case TILE_DIAMOND:
-                update_tile_rock(i, j, TILE_DIAMOND_FALLING);
+                update_tile_fallable(i, j, TILE_DIAMOND_FALLING);
                 break;
             case TILE_DIAMOND_FALLING:
-                update_tile_rock_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
+                update_tile_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
+                break;
+            case TILE_BALLOON:
+                update_tile_riseable(i, j, TILE_BALLOON_RISING);
+                break;
+            case TILE_BALLOON_RISING:
+                update_tile_rising(i, j, TILE_BALLOON, TILE_BALLOON_RISING);
                 break;
             case TILE_PLAYER:
                 if (update_player(i, j, dx, dy, dig, slot)) {
