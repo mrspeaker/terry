@@ -46,8 +46,6 @@ uint8_t pixels[PIX_H][PIX_W] = {0};
 
 #define TILE_COLS ((SCR_TW * 2)+1)
 #define TILE_ROWS ((SCR_TH * 2)+1)
-uint8_t tiles[TILE_ROWS][TILE_COLS] = {0};
-bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
 uint8_t cam_x = 0;
 uint8_t cam_t = 0;
@@ -68,7 +66,6 @@ typedef struct {
     bool dig;
 } player_state;
 
-
 typedef enum {
     TILE_EMPTY,
     TILE_BEDROCK,
@@ -85,10 +82,7 @@ typedef enum {
     TILE_EXP_2,
     TILE_EXP_3,
     TILE_EXP_4,
-    TILE_FIREFLY_U,
-    TILE_FIREFLY_D,
-    TILE_FIREFLY_L,
-    TILE_FIREFLY_R,
+    TILE_FIREFLY,
     TILE_AMOEBA,
     TILE__LEN
 } tile_type;
@@ -115,10 +109,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EXP_2] = { false, false, false },
     [TILE_EXP_3] = { false, false, false },
     [TILE_EXP_4] = { false, false, false },
-    [TILE_FIREFLY_U] = { false, true, true },
-    [TILE_FIREFLY_D] = { false, true, true },
-    [TILE_FIREFLY_L] = { false, true, true },
-    [TILE_FIREFLY_R] = { false, true, true },
+    [TILE_FIREFLY] = { false, true, true },
     [TILE_AMOEBA] = { false, false, false },
 };
 
@@ -162,6 +153,19 @@ const uint8_t tile_gfx[][16] = {
         4,3,3,4,
     },
 };
+
+typedef struct {
+    tile_type type;
+    union {
+        dir dir;
+        int ticks;
+    } data;
+} tile;
+
+tile bedrocked = {.type=TILE_BEDROCK, .data.ticks=0};
+
+tile tiles[TILE_ROWS][TILE_COLS] = {0};
+bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
 void done(int signum);
 
@@ -230,25 +234,27 @@ uint8_t get_cell(uint8_t x, uint8_t y) {
     return pixels[y][x];
 }
 
-bool is_firefly(tile_type t) {
-    return t== TILE_FIREFLY_U ||
-        t == TILE_FIREFLY_D ||
-        t == TILE_FIREFLY_L ||
-        t == TILE_FIREFLY_R;
+tile *get_tile(uint8_t x, uint8_t y) {
+    if (y >= TILE_ROWS || y < 0) return &bedrocked;
+    if (x >= TILE_COLS || x < 0) return &bedrocked;
+    return &tiles[y][x];
 }
 
-uint8_t get_tile(uint8_t x, uint8_t y) {
-    if (y >= TILE_ROWS || y < 0) return TILE_BEDROCK;
-    if (x >= TILE_COLS || x < 0) return TILE_BEDROCK;
-    return tiles[y][x];
-}
-
-void set_tile(uint8_t x, uint8_t y, tile_type t) {
-    if (y > TILE_ROWS || y < 0) return;
-    if (x > TILE_COLS || x < 0) return;
-    tiles[y][x] = t;
+bool set_tile(uint8_t x, uint8_t y, tile_type t) {
+    if (y > TILE_ROWS || y < 0) return false;
+    if (x > TILE_COLS || x < 0) return false;
+    tiles[y][x].type = t;
     tiles_ticked[y][x] = true;
+    return true;
 }
+
+void set_dir_tile(uint8_t x, uint8_t y, tile_type t, dir d) {
+    if (set_tile(x, y, t)) {
+        tiles[y][x].data.dir.x = d.x;
+        tiles[y][x].data.dir.y = d.y;
+    }
+}
+
 
 void update_pixels(player_state *s, bool flash) {
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
@@ -259,7 +265,7 @@ void update_pixels(player_state *s, bool flash) {
 
     for (uint8_t y = y1; y < y2; y++) {
         for (uint8_t x = x1; x < x2; x++) {
-            tile_type t = get_tile(x, y);
+            tile *t = get_tile(x, y);
             for (uint8_t j = 0; j < px_per_tile; j++) {
                 for (uint8_t i = 0; i < px_per_tile; i++) {
                     uint8_t *cur = &(pixels[(y - y1) * px_per_tile + j][(x - x1) * px_per_tile + i]);
@@ -268,7 +274,7 @@ void update_pixels(player_state *s, bool flash) {
                         continue;
                     }
 
-                    switch (t) {
+                    switch (t->type) {
                     case TILE_EMPTY: *cur = C_BLACK; break;
                     case TILE_ROCK:
                     case TILE_ROCK_FALLING:
@@ -288,32 +294,19 @@ void update_pixels(player_state *s, bool flash) {
                     case TILE_BALLOON:
                     case TILE_BALLOON_RISING:
                         *cur = pal[tile_gfx[TILE_BALLOON][j * 4 + i]]; break;
-                    case TILE_FIREFLY_U:
+                    case TILE_FIREFLY:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) { *cur = 250; }
                         break;
-                    case TILE_FIREFLY_D:
-                        *cur = 0xc5 + (rand() % 5);
-                        if (i == 1 && j == 1) { *cur = 250; }
-                        break;
-                    case TILE_FIREFLY_L:
-                        *cur = 0xc5 + (rand() % 5);
-                        if (i == 0 && j == 1) { *cur = 250; }
-                        break;
-                    case TILE_FIREFLY_R:
-                        *cur = 0xc5 + (rand() % 5);
-                        if (i == 1 && j == 0) { *cur = 250; }
-                        break;
                     case TILE_PLAYER:
-                        *cur = pal[10];
-                        /*226 + (rand() % 5);
+                        *cur = 226 + (rand() % 5);
                         if (j == 1) {
-                            if (s->facing_right) {
+                            if (s->dir.x < 0) {
                                 if (i == 1 || i == 3) *cur = 0xcd;
                             } else {
                                 if (i == 0 || i == 2) *cur = 0xcd;
                             }
-                            }*/
+                        }
                         break;
                     case TILE_AMOEBA:
                         *cur = 17 + (rand() % 5);
@@ -356,7 +349,7 @@ void reset_level(uint8_t player_x, uint8_t player_y) {
                 continue;
             }
             if (r < 940) {
-                set_tile(x, y, TILE_FIREFLY_L);
+                set_dir_tile(x, y, TILE_FIREFLY, (dir){1,0});
                 continue;
             }
             if (r < 970) {
@@ -392,19 +385,19 @@ void reset_level(uint8_t player_x, uint8_t player_y) {
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
-    return get_tile(x, y) == TILE_EMPTY;
+    return get_tile(x, y)->type == TILE_EMPTY;
 }
 bool is_round(uint8_t x, uint8_t y) {
-    return tiledefs[get_tile(x, y)].round;
+    return tiledefs[get_tile(x, y)->type].round;
 }
 
 void explode(uint8_t x, uint8_t y) {
-    tile_type t = get_tile(x, y);
+    tile_type t = get_tile(x, y)->type;
     set_tile(x, y, TILE_EXP_1);
 
     for (int8_t i = -1; i <= 1; i++) {
         for (int8_t j = -1; j <= 1; j++) {
-            t = get_tile(x + i, y + j);
+            t = get_tile(x + i, y + j)->type;
             tile_deets td = tiledefs[t];
             if (td.explodable) {
                 explode(x + i, y + j);
@@ -416,7 +409,7 @@ void explode(uint8_t x, uint8_t y) {
 }
 
 void update_tile_fallable(uint8_t i, uint8_t j, tile_type t) {
-    tile_type dn = get_tile(i, j + 1);
+    tile_type dn = get_tile(i, j + 1)->type;
     tile_deets td_dn = tiledefs[dn];
 
     if (dn == TILE_EMPTY) {
@@ -437,7 +430,7 @@ void update_tile_fallable(uint8_t i, uint8_t j, tile_type t) {
 }
 
 void update_tile_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
-    tile_type dn = get_tile(i, j + 1);
+    tile_type dn = get_tile(i, j + 1)->type;
     tile_deets td_dn = tiledefs[dn];
 
     // Straight down
@@ -468,7 +461,7 @@ void update_tile_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
 }
 
 void update_tile_riseable(uint8_t i, uint8_t j, tile_type t) {
-    tile_type up = get_tile(i, j - 1);
+    tile_type up = get_tile(i, j - 1)->type;
     tile_deets td_up = tiledefs[up];
 
     if (up == TILE_EMPTY) {
@@ -489,7 +482,7 @@ void update_tile_riseable(uint8_t i, uint8_t j, tile_type t) {
 }
 
 void update_tile_rising(uint8_t i, uint8_t j, tile_type rest, tile_type rise) {
-    tile_type up = get_tile(i, j - 1);
+    tile_type up = get_tile(i, j - 1)->type;
     tile_deets td_up = tiledefs[up];
 
     // Straight up
@@ -530,11 +523,13 @@ void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
     int8_t dy = s->dy;
     bool dig = s->dig;
 
-    tile_type t = get_tile(x + dx * 2, y + dy * 2);
+    tile_type t = get_tile(x + dx * 2, y + dy * 2)->type;
     if (rand() % 2 == 1) return; // random struggle-to-push
     if (t == TILE_EMPTY || t == TILE_SAND) {
         set_tile(x + dx * 2, y + dy * 2, ot);
         if (dig) {
+            // Shoot it?! - test this: "fires" the tile as far as it can travel
+            // instead of just moving one block
             set_tile(x + dx, y + dy, TILE_EMPTY);
         } else {
             set_tile(x + dx, y + dy, TILE_PLAYER);
@@ -560,7 +555,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
 
     bool pushing = dx != 0 || dy != 0;
 
-    tile_type t = get_tile(x + s->dx, y + s->dy);
+    tile_type t = get_tile(x + s->dx, y + s->dy)->type;
     if (t == TILE_EMPTY || t == TILE_SAND) {
         if (dig) {
             set_tile(x + dx, y + dy, s->slot == 0 ? TILE_EMPTY : TILE_ROCK);
@@ -589,63 +584,64 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
     }
 }
 
-dir rotate_left(int8_t dx, int8_t dy) {
-    if (dy == -1) return (dir){ -1, 0 };
-    if (dx == -1) return (dir){ 0, 1 };
-    if (dy == 1) return (dir){ 1, 0 };
+dir rotate_left(dir *d) {
+    if (d->y == -1) return (dir){ -1, 0 };
+    if (d->x == -1) return (dir){ 0, 1 };
+    if (d->y == 1) return (dir){ 1, 0 };
     return (dir){ 0, -1 };
 }
 
-dir rotate_right(int8_t dx, int8_t dy) {
-    if (dy == -1) return (dir){ 1, 0 };
-    if (dx == 1) return (dir){ 0, 1 };
-    if (dy == 1) return (dir){ -1, 0 };
+dir rotate_right(dir *d) {
+    if (d->y == -1) return (dir){ 1, 0 };
+    if (d->x == 1) return (dir){ 0, 1 };
+    if (d->y == 1) return (dir){ -1, 0 };
     return (dir){ 0, -1 };
 }
 
-tile_type get_firefly(dir d) {
-    if (d.y == -1) return TILE_FIREFLY_U;
+/*tile *get_firefly_dir(dir *d) {
+    if (d->y == -1) return TILE_FIREFLY_U;
     if (d.x == 1) return TILE_FIREFLY_R;
     if (d.y == 1) return TILE_FIREFLY_D;
     return TILE_FIREFLY_L;
-}
+    }*/
 
-void update_firefly(uint8_t x, uint8_t y, int8_t dx, int8_t dy) {
-
-    dir d = { dx, dy };
+void update_firefly(uint8_t x, uint8_t y, dir *d) {
 
     // if touching player - explode
-    if (get_tile(x, y - 1) == TILE_PLAYER ||
-        get_tile(x, y + 1) == TILE_PLAYER ||
-        get_tile(x - 1, y) == TILE_PLAYER ||
-        get_tile(x + 1, y) == TILE_PLAYER) {
+    if (get_tile(x, y - 1)->type == TILE_PLAYER ||
+        get_tile(x, y + 1)->type == TILE_PLAYER ||
+        get_tile(x - 1, y)->type == TILE_PLAYER ||
+        get_tile(x + 1, y)->type == TILE_PLAYER) {
         explode(x, y);
         return;
     }
 
     // Try rotate left
-    dir rotL = rotate_left(dx, dy);
-    if (get_tile(x + rotL.x, y + rotL.y) == TILE_EMPTY) {
-        move_tile(x, y, rotL, get_firefly(rotL));
+    dir rotL = rotate_left(d);
+    if (get_tile(x + rotL.x, y + rotL.y)->type == TILE_EMPTY) {
+        d->x = rotL.x;
+        d->y = rotL.y;
+        move_tile(x, y, *d, TILE_FIREFLY);
         return;
     }
 
     // Try go straight
-    if (get_tile(x + dx, y + dy) == TILE_EMPTY) {
-        move_tile(x, y, d, get_firefly(d));
+    if (get_tile(x + d->x, y + d->y) == TILE_EMPTY) {
+        move_tile(x, y, *d, TILE_FIREFLY);
         return;
     }
 
     // rotate right
-    set_tile(x, y, get_firefly(rotate_right(dx, dy)));
+    rotate_right(d);
+    set_tile(x, y, TILE_FIREFLY);
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
     // if touching firefly - explode
-    if (is_firefly(get_tile(x, y - 1)) ||
-        is_firefly(get_tile(x, y + 1)) ||
-        is_firefly(get_tile(x - 1, y)) ||
-        is_firefly(get_tile(x + 1, y))) {
+    if (get_tile(x, y - 1)->type == TILE_FIREFLY ||
+        get_tile(x, y + 1)->type == TILE_FIREFLY ||
+        get_tile(x - 1, y)->type == TILE_FIREFLY ||
+        get_tile(x + 1, y)->type == TILE_FIREFLY) {
         explode(x, y);
         set_tile(x, y, TILE_DIAMOND);
     }
@@ -663,7 +659,9 @@ bool tick_tiles(player_state *s) {
             // Only process each cell once per tick
             if (tiles_ticked[j][i]) continue;
 
-            uint8_t t = get_tile(i, j);
+            tile *tile = get_tile(i, j);
+            uint8_t t= tile->type;
+
             if (t == TILE_EMPTY || t == TILE_BEDROCK || t == TILE_SAND) continue;
 
             switch (t) {
@@ -690,7 +688,7 @@ bool tick_tiles(player_state *s) {
                 if (s->got_diamond) {
                     s->lives += 16;
                     flash = true;
-                };
+                }
                 if (s->moved) {
                     s->lives -= 1;
                 }
@@ -699,10 +697,7 @@ bool tick_tiles(player_state *s) {
             case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
             case TILE_EXP_3: set_tile(i, j, TILE_EXP_4); break;
             case TILE_EXP_4: set_tile(i, j, TILE_EMPTY); break;
-            case TILE_FIREFLY_U: update_firefly(i, j, 0, -1); break;
-            case TILE_FIREFLY_D: update_firefly(i, j, 0, 1); break;
-            case TILE_FIREFLY_L: update_firefly(i, j, -1, 0); break;
-            case TILE_FIREFLY_R: update_firefly(i, j, 1, 0); break;
+            case TILE_FIREFLY: update_firefly(i, j, &tile->data.dir); break;
             case TILE_AMOEBA: update_amoeba(i, j);
             default:
                 break;
