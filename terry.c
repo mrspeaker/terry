@@ -245,14 +245,25 @@ bool set_tile(uint8_t x, uint8_t y, tile_type t) {
     if (x > TILE_COLS || x < 0) return false;
     tiles[y][x].type = t;
     tiles_ticked[y][x] = true;
+    tiles[y][x].data.ticks = 0;
     return true;
 }
 
-void set_dir_tile(uint8_t x, uint8_t y, tile_type t, dir d) {
+void set_tile_and_data_dir(uint8_t x, uint8_t y, tile_type t, dir d) {
     if (set_tile(x, y, t)) {
         tiles[y][x].data.dir.x = d.x;
         tiles[y][x].data.dir.y = d.y;
     }
+}
+
+void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
+    set_tile(x, y, TILE_EMPTY);
+    set_tile(x + d.x, y + d.y, t);
+}
+
+void move_tile_dir(uint8_t x, uint8_t y, dir d, tile_type t) {
+    set_tile(x, y, TILE_EMPTY);
+    set_tile_and_data_dir(x + d.x, y + d.y, t, d);
 }
 
 
@@ -296,7 +307,16 @@ void update_pixels(player_state *s, bool flash) {
                         *cur = pal[tile_gfx[TILE_BALLOON][j * 4 + i]]; break;
                     case TILE_FIREFLY:
                         *cur = 0xc5 + (rand() % 5);
-                        if (i == 0 && j == 0) { *cur = 250; }
+                        if (i == 0 && j == 0) {
+                        if (t->data.dir.x < 0) *cur = C_YELLOW;
+                        if (t->data.dir.x > 0) *cur = C_LIGHTGREY;
+                        if (t->data.dir.y < 0) *cur = C_BLACK;
+                        if (t->data.dir.y > 0) *cur = C_MAROON;
+                        //if (t->data.dir.x == 0 && t->data.dir.y == 0) done(11);
+                        if (t->data.dir.x == 1 && t->data.dir.y == 1) done(42);
+
+                        }
+
                         break;
                     case TILE_PLAYER:
                         *cur = 226 + (rand() % 5);
@@ -309,7 +329,7 @@ void update_pixels(player_state *s, bool flash) {
                         }
                         break;
                     case TILE_AMOEBA:
-                        *cur = 17 + (rand() % 5);
+                        *cur = 17 + (rand() % 50);
                         break;
                     default:
                         *cur = rand()%(232-196)+197;
@@ -349,7 +369,7 @@ void reset_level(uint8_t player_x, uint8_t player_y) {
                 continue;
             }
             if (r < 940) {
-                set_dir_tile(x, y, TILE_FIREFLY, (dir){1,0});
+                set_tile_and_data_dir(x, y, TILE_FIREFLY, (dir){1,0});
                 continue;
             }
             if (r < 970) {
@@ -513,11 +533,6 @@ void update_tile_rising(uint8_t i, uint8_t j, tile_type rest, tile_type rise) {
 
 }
 
-void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
-    set_tile(x, y, TILE_EMPTY);
-    set_tile(x + d.x, y + d.y, t);
-}
-
 void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
     int8_t dx = s->dx;
     int8_t dy = s->dy;
@@ -598,15 +613,7 @@ dir rotate_right(dir *d) {
     return (dir){ 0, -1 };
 }
 
-/*tile *get_firefly_dir(dir *d) {
-    if (d->y == -1) return TILE_FIREFLY_U;
-    if (d.x == 1) return TILE_FIREFLY_R;
-    if (d.y == 1) return TILE_FIREFLY_D;
-    return TILE_FIREFLY_L;
-    }*/
-
 void update_firefly(uint8_t x, uint8_t y, dir *d) {
-
     // if touching player - explode
     if (get_tile(x, y - 1)->type == TILE_PLAYER ||
         get_tile(x, y + 1)->type == TILE_PLAYER ||
@@ -615,25 +622,32 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
         explode(x, y);
         return;
     }
+    if (d->x == 0 && d->y ==0) done(39);
 
     // Try rotate left
     dir rotL = rotate_left(d);
     if (get_tile(x + rotL.x, y + rotL.y)->type == TILE_EMPTY) {
         d->x = rotL.x;
         d->y = rotL.y;
-        move_tile(x, y, *d, TILE_FIREFLY);
+        if (d->x == 0 && d->y ==0) done(33);
+        move_tile_dir(x, y, *d, TILE_FIREFLY);
         return;
     }
 
     // Try go straight
-    if (get_tile(x + d->x, y + d->y) == TILE_EMPTY) {
-        move_tile(x, y, *d, TILE_FIREFLY);
+    if (get_tile(x + d->x, y + d->y)->type == TILE_EMPTY) {
+        if (d->x == 0 && d->y ==0) done(35);
+        move_tile_dir(x, y, *d, TILE_FIREFLY);
         return;
     }
+        if (d->x == 0 && d->y ==0) done(37);
+
 
     // rotate right
-    rotate_right(d);
-    set_tile(x, y, TILE_FIREFLY);
+    dir rotR = rotate_right(d);
+    d->x = rotR.x;
+    d->y = rotR.y;
+    set_tile_and_data_dir(x, y, TILE_FIREFLY, *d);
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
