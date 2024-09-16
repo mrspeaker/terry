@@ -78,10 +78,7 @@ typedef enum {
     TILE_DIAMOND_FALLING,
     TILE_BALLOON,
     TILE_BALLOON_RISING,
-    TILE_EXP_1,
-    TILE_EXP_2,
-    TILE_EXP_3,
-    TILE_EXP_4,
+    TILE_EXP,
     TILE_FIREFLY,
     TILE_AMOEBA,
     TILE__LEN
@@ -105,10 +102,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_DIAMOND_FALLING] = { false, false, true },
     [TILE_BALLOON] = { true, false, true },
     [TILE_BALLOON_RISING] = { false, false, true },
-    [TILE_EXP_1] = { false, false, false },
-    [TILE_EXP_2] = { false, false, false },
-    [TILE_EXP_3] = { false, false, false },
-    [TILE_EXP_4] = { false, false, false },
+    [TILE_EXP] = { false, false, false },
     [TILE_FIREFLY] = { false, true, true },
     [TILE_AMOEBA] = { false, false, false },
 };
@@ -255,6 +249,13 @@ void set_tile_and_data_dir(uint8_t x, uint8_t y, tile_type t, dir d) {
         tiles[y][x].data.dir.y = d.y;
     }
 }
+
+void set_tile_and_data_ticks(uint8_t x, uint8_t y, tile_type t, int ticks) {
+    if (set_tile(x, y, t)) {
+        tiles[y][x].data.ticks = ticks;
+    }
+}
+
 
 void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile(x, y, TILE_EMPTY);
@@ -413,7 +414,7 @@ bool is_round(uint8_t x, uint8_t y) {
 
 void explode(uint8_t x, uint8_t y) {
     tile_type t = get_tile(x, y)->type;
-    set_tile(x, y, TILE_EXP_1);
+    set_tile_and_data_ticks(x, y, TILE_EXP, 0);
 
     for (int8_t i = -1; i <= 1; i++) {
         for (int8_t j = -1; j <= 1; j++) {
@@ -422,7 +423,8 @@ void explode(uint8_t x, uint8_t y) {
             if (td.explodable) {
                 explode(x + i, y + j);
             } else if (td.consumable) {
-                set_tile(x + i, y + j, TILE_EXP_1);
+                //set_tile(x + i, y + j, TILE_EXP_1);
+                set_tile_and_data_ticks(x + i, y + j, TILE_EXP, 0);
             }
         }
     }
@@ -707,10 +709,11 @@ bool tick_tiles(player_state *s) {
                     s->lives -= 1;
                 }
                 break;
-            case TILE_EXP_1: set_tile(i, j, TILE_EXP_2); break;
-            case TILE_EXP_2: set_tile(i, j, TILE_EXP_3); break;
-            case TILE_EXP_3: set_tile(i, j, TILE_EXP_4); break;
-            case TILE_EXP_4: set_tile(i, j, TILE_EMPTY); break;
+            case TILE_EXP:
+                if (tile->data.ticks++ > 4) {
+                    set_tile(i, j, TILE_EMPTY);
+                }
+                break;
             case TILE_FIREFLY: update_firefly(i, j, &tile->data.dir); break;
             case TILE_AMOEBA: update_amoeba(i, j);
             default:
