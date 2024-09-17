@@ -68,19 +68,20 @@ typedef struct {
 
 typedef enum {
     TILE_EMPTY,
+    TILE_AMOEBA,
+    TILE_BALLOON,
+    TILE_BALLOON_RISING,
     TILE_BEDROCK,
+    TILE_BULLET,
+    TILE_DIAMOND,
+    TILE_DIAMOND_FALLING,
+    TILE_EXP,
+    TILE_FIREFLY,
     TILE_PLAYER,
     TILE_ROCK,
     TILE_ROCK_FALLING,
     TILE_SANDSTONE,
     TILE_SAND,
-    TILE_DIAMOND,
-    TILE_DIAMOND_FALLING,
-    TILE_BALLOON,
-    TILE_BALLOON_RISING,
-    TILE_EXP,
-    TILE_FIREFLY,
-    TILE_AMOEBA,
     TILE__LEN
 } tile_type;
 
@@ -88,23 +89,28 @@ typedef struct {
     bool round;
     bool explodable;
     bool consumable;
+    bool pushable;
 } tile_deets;
 
+#define T true
+#define F false
+
 const tile_deets tiledefs[TILE__LEN] = {
-    [TILE_EMPTY] = { false, false, true },
-    [TILE_BEDROCK] = { true, false, false },
-    [TILE_PLAYER] = { false, true, true },
-    [TILE_ROCK] = { true, false, true },
-    [TILE_ROCK_FALLING] = { false, false, true },
-    [TILE_SANDSTONE] = { true, false, true },
-    [TILE_SAND] = { true, false, true },
-    [TILE_DIAMOND] = { true, false, true },
-    [TILE_DIAMOND_FALLING] = { false, false, true },
-    [TILE_BALLOON] = { true, false, true },
-    [TILE_BALLOON_RISING] = { false, false, true },
-    [TILE_EXP] = { false, false, false },
-    [TILE_FIREFLY] = { false, true, true },
-    [TILE_AMOEBA] = { false, false, false },
+    [TILE_EMPTY] =        { F, F, T, F },
+    [TILE_BEDROCK] =      { F, F, F, F },
+    [TILE_PLAYER] =       { F, T, T, F },
+    [TILE_ROCK] =         { T, F, T, T },
+    [TILE_ROCK_FALLING] = { F, F, T, F },
+    [TILE_SANDSTONE] =    { T, F, T, T },
+    [TILE_SAND] =         { T, F, T, F },
+    [TILE_DIAMOND] =      { T, F, T, F },
+    [TILE_DIAMOND_FALLING] = { F, F, T, F},
+    [TILE_BALLOON] =      { T, F, T, T },
+    [TILE_BALLOON_RISING] = { F, F, T, F },
+    [TILE_EXP] =          { F, F, F, F },
+    [TILE_FIREFLY] =      { F, T, T, F },
+    [TILE_AMOEBA] =       { F, F, F, F },
+    [TILE_BULLET] =       { F, T, T, F },
 };
 
 const uint8_t pal[] = {
@@ -145,6 +151,12 @@ const uint8_t tile_gfx[][16] = {
         3,3,3,3,
         5,3,3,5,
         4,3,3,4,
+    },
+    [TILE_BULLET] = {
+        0,0,0,0,
+        0,6,5,0,
+        0,5,6,0,
+        0,0,0,0,
     },
 };
 
@@ -284,7 +296,7 @@ void move_tile_dir(uint8_t x, uint8_t y, dir d, tile_type t) {
 }
 
 
-void update_pixels(player_state *s, bool flash) {
+void render_tiles(player_state *s, bool flash) {
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
     uint8_t y2 = y1 + SCR_TH;
 
@@ -330,7 +342,6 @@ void update_pixels(player_state *s, bool flash) {
                             if (t->tile_data.data.dir.y < 0) *cur = C_BLACK;
                             if (t->tile_data.data.dir.y > 0) *cur = C_MAROON;
                         }
-
                         break;
                     case TILE_PLAYER:
                         *cur = 226 + (rand() % 5);
@@ -345,6 +356,9 @@ void update_pixels(player_state *s, bool flash) {
                     case TILE_AMOEBA:
                         *cur = 17 + (rand() % 5);
                         break;
+                    case TILE_BULLET:
+                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]]; break;
+
                     default:
                         *cur = rand()%(232-196)+197;
                         break;
@@ -355,7 +369,7 @@ void update_pixels(player_state *s, bool flash) {
     }
 }
 
-void reset_level(uint8_t player_x, uint8_t player_y) {
+void random_level(uint8_t player_x, uint8_t player_y) {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
             if (x == 0 || x == TILE_COLS - 1 || y == 0 || y == TILE_ROWS -1) {
@@ -470,6 +484,8 @@ void update_tile_shootable(uint8_t i, uint8_t j, tile *tile) {
         tile_type t = get_tile(i + d.x, j + d.y)->type;
         if (t == TILE_EMPTY || t == TILE_SAND) {
             move_tile_dir(i, j, d, tile->type);
+        } else {
+            explode(i, j);
         }
     }
 }
@@ -597,9 +613,20 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
     bool pushing = dx != 0 || dy != 0;
 
     tile_type t = get_tile(x + s->dx, y + s->dy)->type;
+    tile_deets td = tiledefs[t];
+
     if (t == TILE_EMPTY || t == TILE_SAND) {
         if (dig) {
-            set_tile(x + dx, y + dy, s->slot == 0 ? TILE_EMPTY : TILE_ROCK);
+            if (s->slot == 1) {
+                set_tile(x + dx, y + dy, TILE_EMPTY);
+            } else {
+                set_tile_and_data_dir(
+                     x + dx,
+                     y + dy,
+                     TILE_BULLET,
+                     (dir){dx, dy}
+               );
+            }
         } else {
             set_tile(x, y, TILE_EMPTY);
             set_tile(x + dx, y + dy, TILE_PLAYER);
@@ -617,7 +644,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
             s->y = y + dy;
         }
         s->got_diamond = true;
-    } else if (pushing && (t == TILE_ROCK || t == TILE_SANDSTONE || t == TILE_BALLOON)) {
+    } else if (pushing && td.pushable) {
         push_block(x, y, s, t);
     }
     if (old_x != s->x || old_y != s->y) {
@@ -705,6 +732,9 @@ bool tick_tiles(player_state *s) {
             if (t == TILE_EMPTY || t == TILE_BEDROCK || t == TILE_SAND) continue;
 
             switch (t) {
+            case TILE_BULLET:
+                update_tile_shootable(i, j, tile);
+                break;
             case TILE_ROCK:
                 update_tile_fallable(i, j, TILE_ROCK_FALLING);
                 update_tile_shootable(i, j, tile);
@@ -789,7 +819,7 @@ void reset(player_state *s) {
     s->x = 5;
     s->y = 5;
     s->lives = 16;
-    reset_level(s->x, s->y);
+    random_level(s->x, s->y);
 }
 
 int main() {
@@ -855,7 +885,7 @@ int main() {
                 flash = 2;
             }
         }
-        update_pixels(&s, flash > 0);
+        render_tiles(&s, flash > 0);
         if (--flash < 0) flash = 0;
 
         // Render
@@ -866,7 +896,7 @@ int main() {
         cursor_to(scr_w / 2 - (PIX_W / 2), (scr_h / 2) + (PIX_H / 4) + 1);
         printf("energy: %d | ", s.lives);
         printf("move: wsad | r: restart | spc: 0=dig, 1=rock | cur: ");
-        printf(s.slot == 0 ? "dig " : "rock");
+        printf(s.slot == 0 ? "shoot " : "dig  ");
 
 
         fflush(stdout);
