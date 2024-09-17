@@ -148,15 +148,27 @@ const uint8_t tile_gfx[][16] = {
     },
 };
 
+typedef enum {
+    TD_TICKS,
+    TD_DIR
+} tile_data_type;
+
+typedef union {
+    dir dir;
+    int ticks;
+} tile_data;
+
+typedef struct {
+    tile_data_type type;
+    tile_data data;
+} tagged_tile_data;
+
 typedef struct {
     tile_type type;
-    union {
-        dir dir;
-        int ticks;
-    } data;
+    tagged_tile_data tile_data;
 } tile;
 
-tile bedrocked = {.type=TILE_BEDROCK, .data.ticks=0};
+tile bedrocked = {.type=TILE_BEDROCK, .tile_data.type=TD_TICKS};
 
 tile tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
@@ -237,22 +249,26 @@ tile *get_tile(uint8_t x, uint8_t y) {
 bool set_tile(uint8_t x, uint8_t y, tile_type t) {
     if (y > TILE_ROWS || y < 0) return false;
     if (x > TILE_COLS || x < 0) return false;
-    tiles[y][x].type = t;
     tiles_ticked[y][x] = true;
-    tiles[y][x].data.ticks = 0;
+
+    tiles[y][x].type = t;
+    tiles[y][x].tile_data.type = TD_TICKS;
+    tiles[y][x].tile_data.data.ticks = 0;
+
     return true;
 }
 
 void set_tile_and_data_dir(uint8_t x, uint8_t y, tile_type t, dir d) {
     if (set_tile(x, y, t)) {
-        tiles[y][x].data.dir.x = d.x;
-        tiles[y][x].data.dir.y = d.y;
+        tiles[y][x].tile_data.type = TD_DIR;
+        tiles[y][x].tile_data.data.dir.x = d.x;
+        tiles[y][x].tile_data.data.dir.y = d.y;
     }
 }
 
 void set_tile_and_data_ticks(uint8_t x, uint8_t y, tile_type t, int ticks) {
     if (set_tile(x, y, t)) {
-        tiles[y][x].data.ticks = ticks;
+        tiles[y][x].tile_data.data.ticks = ticks;
     }
 }
 
@@ -309,13 +325,10 @@ void update_pixels(player_state *s, bool flash) {
                     case TILE_FIREFLY:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) {
-                        if (t->data.dir.x < 0) *cur = C_YELLOW;
-                        if (t->data.dir.x > 0) *cur = C_LIGHTGREY;
-                        if (t->data.dir.y < 0) *cur = C_BLACK;
-                        if (t->data.dir.y > 0) *cur = C_MAROON;
-                        //if (t->data.dir.x == 0 && t->data.dir.y == 0) done(11);
-                        if (t->data.dir.x == 1 && t->data.dir.y == 1) done(42);
-
+                            if (t->tile_data.data.dir.x < 0) *cur = C_YELLOW;
+                            if (t->tile_data.data.dir.x > 0) *cur = C_LIGHTGREY;
+                            if (t->tile_data.data.dir.y < 0) *cur = C_BLACK;
+                            if (t->tile_data.data.dir.y > 0) *cur = C_MAROON;
                         }
 
                         break;
@@ -451,6 +464,16 @@ void update_tile_fallable(uint8_t i, uint8_t j, tile_type t) {
     }
 }
 
+void update_tile_shootable(uint8_t i, uint8_t j, tile *tile) {
+    if (tile->tile_data.type == TD_DIR) {
+        dir d = tile->tile_data.data.dir;
+        tile_type t = get_tile(i + d.x, j + d.y)->type;
+        if (t == TILE_EMPTY || t == TILE_SAND) {
+            move_tile_dir(i, j, d, tile->type);
+        }
+    }
+}
+
 void update_tile_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
     tile_type dn = get_tile(i, j + 1)->type;
     tile_deets td_dn = tiledefs[dn];
@@ -543,12 +566,13 @@ void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
     tile_type t = get_tile(x + dx * 2, y + dy * 2)->type;
     if (rand() % 2 == 1) return; // random struggle-to-push
     if (t == TILE_EMPTY || t == TILE_SAND) {
-        set_tile(x + dx * 2, y + dy * 2, ot);
         if (dig) {
             // Shoot it?! - test this: "fires" the tile as far as it can travel
             // instead of just moving one block
+            set_tile_and_data_dir(x + dx * 2, y + dy * 2, ot, (dir){dx, dy});
             set_tile(x + dx, y + dy, TILE_EMPTY);
         } else {
+            set_tile(x + dx * 2, y + dy * 2, ot);
             set_tile(x + dx, y + dy, TILE_PLAYER);
             s->x = x + dx;
             s->y = y + dy;
@@ -683,6 +707,7 @@ bool tick_tiles(player_state *s) {
             switch (t) {
             case TILE_ROCK:
                 update_tile_fallable(i, j, TILE_ROCK_FALLING);
+                update_tile_shootable(i, j, tile);
                 break;
             case TILE_ROCK_FALLING:
                 update_tile_falling(i, j, TILE_ROCK, TILE_ROCK_FALLING);
@@ -692,6 +717,9 @@ bool tick_tiles(player_state *s) {
                 break;
             case TILE_DIAMOND_FALLING:
                 update_tile_falling(i, j, TILE_DIAMOND, TILE_DIAMOND_FALLING);
+                break;
+            case TILE_SANDSTONE:
+                update_tile_shootable(i, j, tile);
                 break;
             case TILE_BALLOON:
                 update_tile_riseable(i, j, TILE_BALLOON_RISING);
@@ -710,11 +738,11 @@ bool tick_tiles(player_state *s) {
                 }
                 break;
             case TILE_EXP:
-                if (tile->data.ticks++ > 4) {
+                if (tile->tile_data.data.ticks++ > 4) {
                     set_tile(i, j, TILE_EMPTY);
                 }
                 break;
-            case TILE_FIREFLY: update_firefly(i, j, &tile->data.dir); break;
+            case TILE_FIREFLY: update_firefly(i, j, &tile->tile_data.data.dir); break;
             case TILE_AMOEBA: update_amoeba(i, j);
             default:
                 break;
