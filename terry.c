@@ -443,8 +443,8 @@ bool is_round(uint8_t x, uint8_t y) {
 
 void explode(uint8_t x, uint8_t y, bool diamond) {
     tile_type t = get_tile(x, y)->type;
-    set_tile_and_data_ticks(x, y, diamond ? TILE_EXP : TILE_EXP_DIAMOND, 0);
-
+    //set_tile_and_data_ticks(x, y, diamond ? TILE_EXP_DIAMOND : TILE_EXP, 0);
+    set_tile(x,y,TILE_EMPTY);
     for (int8_t i = -1; i <= 1; i++) {
         for (int8_t j = -1; j <= 1; j++) {
             t = get_tile(x + i, y + j)->type;
