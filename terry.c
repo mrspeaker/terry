@@ -343,7 +343,7 @@ void update_pixels(player_state *s, bool flash) {
                         }
                         break;
                     case TILE_AMOEBA:
-                        *cur = 17 + (rand() % 50);
+                        *cur = 17 + (rand() % 5);
                         break;
                     default:
                         *cur = rand()%(232-196)+197;
