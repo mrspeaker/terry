@@ -890,7 +890,7 @@ int main() {
 
         if (t % 4 == 0) {
             if (tick_tiles(&s)) {
-                flash = 2;
+                flash = 1;
             }
             // If we unset dig, then we shot... clear fire
             if (!s.dig) {
