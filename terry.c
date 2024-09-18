@@ -184,6 +184,11 @@ typedef struct {
 
 tile bedrocked = {.type=TILE_BEDROCK, .tile_data.type=TD_TICKS};
 
+bool is_open_tile (tile_type t) {
+    return t == TILE_EMPTY || t == TILE_SAND;
+}
+
+
 tile tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
 
@@ -483,7 +488,7 @@ void update_tile_shootable(uint8_t i, uint8_t j, tile *tile) {
     if (tile->tile_data.type == TD_DIR) {
         dir d = tile->tile_data.data.dir;
         tile_type t = get_tile(i + d.x, j + d.y)->type;
-        if (t == TILE_EMPTY || t == TILE_SAND) {
+        if (is_open_tile(t)) {
             move_tile_dir(i, j, d, tile->type);
         } else {
             explode(i, j, false);
@@ -581,8 +586,8 @@ void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
     bool dig = s->dig;
 
     tile_type t = get_tile(x + dx * 2, y + dy * 2)->type;
-    if (rand() % 2 == 1) return; // random struggle-to-push
-    if (t == TILE_EMPTY || t == TILE_SAND) {
+    //if (rand() % 2 == 1) return; // random struggle-to-push
+    if (is_open_tile(t)) {
         if (dig) {
             set_tile_and_data_dir(x + dx * 2, y + dy * 2, ot, (dir){dx, dy});
             set_tile(x + dx, y + dy, TILE_EMPTY);
@@ -615,7 +620,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
     tile_type t = get_tile(x + s->dx, y + s->dy)->type;
     tile_deets td = tiledefs[t];
 
-    if (t == TILE_EMPTY || t == TILE_SAND) {
+    if (is_open_tile(t)) {
         if (dig) {
             if (s->slot == 1) {
                 set_tile(x + dx, y + dy, TILE_EMPTY);
@@ -675,7 +680,14 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
         explode(x, y, false);
         return;
     }
-    if (d->x == 0 && d->y ==0) done(39);
+
+    if (get_tile(x, y - 1)->type == TILE_AMOEBA ||
+        get_tile(x, y + 1)->type == TILE_AMOEBA ||
+        get_tile(x - 1, y)->type == TILE_AMOEBA ||
+        get_tile(x + 1, y)->type == TILE_AMOEBA) {
+        explode(x, y, true);
+        return;
+    }
 
     // Try rotate left
     dir rotL = rotate_left(d);
@@ -685,7 +697,6 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
         if (rand()%20>0) {
             d->x = rotL.x;
             d->y = rotL.y;
-            if (d->x == 0 && d->y ==0) done(33);
             move_tile_dir(x, y, *d, TILE_FIREFLY);
             return;
         }
@@ -693,12 +704,9 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
 
     // Try go straight
     if (get_tile(x + d->x, y + d->y)->type == TILE_EMPTY) {
-        if (d->x == 0 && d->y ==0) done(35);
         move_tile_dir(x, y, *d, TILE_FIREFLY);
         return;
     }
-        if (d->x == 0 && d->y ==0) done(37);
-
 
     // rotate right
     dir rotR = rotate_right(d);
@@ -708,12 +716,15 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
-    // if touching firefly - explode
-    if (get_tile(x, y - 1)->type == TILE_FIREFLY ||
-        get_tile(x, y + 1)->type == TILE_FIREFLY ||
-        get_tile(x - 1, y)->type == TILE_FIREFLY ||
-        get_tile(x + 1, y)->type == TILE_FIREFLY) {
-        explode(x, y, true);
+    if (rand()%150 != 0) {
+        return;
+    }
+    uint8_t di = rand() % 4;
+    uint8_t dx[] = { -1, 1, 0, 0 };
+    uint8_t dy[] = { 0, 0, -1, 1 };
+    dir d = { dx[di], dy[di] };
+    if (is_open_tile(get_tile(x + d.x, y + d.y)->type)) {
+        set_tile(x + d.x, y + d.y, TILE_AMOEBA);
     }
 }
 
@@ -892,12 +903,6 @@ int main() {
             if (tick_tiles(&s)) {
                 flash = 1;
             }
-            // If we unset dig, then we shot... clear fire
-            if (!s.dig) {
-                printf("aa");
-                key_unpress(' ', keys);
-            }
-
         }
         render_tiles(&s, flash > 0);
         if (--flash < 0) flash = 0;
@@ -911,7 +916,6 @@ int main() {
         printf("energy: %d | ", s.lives);
         printf("move: wsad | r: restart | spc: 0=dig, 1=rock | cur: ");
         printf(s.slot == 0 ? "shoot " : "dig  ");
-
 
         fflush(stdout);
         usleep(delay);
