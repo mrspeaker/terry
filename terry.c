@@ -79,6 +79,7 @@ typedef enum {
     TILE_EXP_DIAMOND,
     TILE_FIREFLY,
     TILE_PLAYER,
+    TILE_PLAYER_TAIL,
     TILE_ROCK,
     TILE_ROCK_FALLING,
     TILE_SANDSTONE,
@@ -113,6 +114,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_FIREFLY] =      { F, T, T, F },
     [TILE_AMOEBA] =       { F, F, F, F },
     [TILE_BULLET] =       { F, T, T, F },
+    [TILE_PLAYER_TAIL] =  { T, F, F, F },
 };
 
 const uint8_t pal[] = {
@@ -360,6 +362,9 @@ void render_tiles(player_state *s, bool flash) {
                             }
                         }
                         break;
+                    case TILE_PLAYER_TAIL:
+                        *cur = pal[10];
+                        break;
                     case TILE_AMOEBA:
                         *cur = 17 + (rand() % 5);
                         break;
@@ -586,7 +591,6 @@ void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
     bool dig = s->dig;
 
     tile_type t = get_tile(x + dx * 2, y + dy * 2)->type;
-    //if (rand() % 2 == 1) return; // random struggle-to-push
     if (is_open_tile(t)) {
         if (dig) {
             set_tile_and_data_dir(x + dx * 2, y + dy * 2, ot, (dir){dx, dy});
@@ -633,7 +637,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
                );
             }
         } else {
-            set_tile(x, y, TILE_EMPTY);
+            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, 10);
             set_tile(x + dx, y + dy, TILE_PLAYER);
             s->x = x + dx;
             s->y = y + dy;
@@ -643,7 +647,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
             set_tile(x + dx, y + dy, TILE_EMPTY);
         }
         else {
-            set_tile(x, y, TILE_EMPTY);
+            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, 10);
             set_tile(x + dx, y + dy, TILE_PLAYER);
             s->x = x + dx;
             s->y = y + dy;
@@ -779,6 +783,11 @@ bool tick_tiles(player_state *s) {
                 }
                 if (s->moved) {
                     s->lives -= 1;
+                }
+                break;
+            case TILE_PLAYER_TAIL:
+                if (tile->tile_data.data.ticks-- <= 0) {
+                    set_tile(i, j, TILE_EMPTY);
                 }
                 break;
             case TILE_EXP:
