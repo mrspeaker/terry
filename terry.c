@@ -61,6 +61,7 @@ typedef struct {
     dir  dir;
     int16_t lives;
     uint8_t slot;
+    uint8_t tail;
     bool got_diamond;
     bool moved;
     bool dig;
@@ -602,6 +603,7 @@ void push_block(uint8_t x, uint8_t y, player_state *s, tile_type ot) {
             s->x = x + dx;
             s->y = y + dy;
             set_tile(x, y, TILE_EMPTY);
+            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, s->tail++);
         }
     }
 }
@@ -637,7 +639,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
                );
             }
         } else {
-            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, 10);
+            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, s->tail++);
             set_tile(x + dx, y + dy, TILE_PLAYER);
             s->x = x + dx;
             s->y = y + dy;
@@ -647,7 +649,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
             set_tile(x + dx, y + dy, TILE_EMPTY);
         }
         else {
-            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, 10);
+            set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, s->tail++);
             set_tile(x + dx, y + dy, TILE_PLAYER);
             s->x = x + dx;
             s->y = y + dy;
@@ -720,7 +722,7 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
-    if (rand()%150 != 0) {
+    if (rand()%250 != 0) {
         return;
     }
     uint8_t di = rand() % 4;
@@ -786,7 +788,7 @@ bool tick_tiles(player_state *s) {
                 }
                 break;
             case TILE_PLAYER_TAIL:
-                if (tile->tile_data.data.ticks-- <= 0) {
+                if (tile->tile_data.data.ticks < s->tail - 2) {
                     set_tile(i, j, TILE_EMPTY);
                 }
                 break;
