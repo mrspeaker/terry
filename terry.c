@@ -102,7 +102,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EMPTY] =        { F, F, T, F },
     [TILE_BEDROCK] =      { F, F, F, F },
     [TILE_PLAYER] =       { F, T, T, F },
-    [TILE_PLAYER_TAIL] =  { T, T, F, F },
+    [TILE_PLAYER_TAIL] =  { F, T, F, F },
     [TILE_ROCK] =         { T, F, T, T },
     [TILE_ROCK_FALLING] = { F, F, T, F },
     [TILE_SANDSTONE] =    { T, F, T, T },
@@ -792,7 +792,7 @@ bool tick_tiles(player_state *s) {
                 }
                 break;
             case TILE_PLAYER_TAIL:
-                if (tile->tile_data.data.ticks < s->tail - 2) {
+                if (tile->tile_data.data.ticks <= s->tail - 2) {
                     set_tile(i, j, TILE_EMPTY);
                 }
                 break;
