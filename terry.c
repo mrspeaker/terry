@@ -102,6 +102,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EMPTY] =        { F, F, T, F },
     [TILE_BEDROCK] =      { F, F, F, F },
     [TILE_PLAYER] =       { F, T, T, F },
+    [TILE_PLAYER_TAIL] =  { T, T, F, F },
     [TILE_ROCK] =         { T, F, T, T },
     [TILE_ROCK_FALLING] = { F, F, T, F },
     [TILE_SANDSTONE] =    { T, F, T, T },
@@ -115,7 +116,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_FIREFLY] =      { F, T, T, F },
     [TILE_AMOEBA] =       { F, F, F, F },
     [TILE_BULLET] =       { F, T, T, F },
-    [TILE_PLAYER_TAIL] =  { T, F, F, F },
+
 };
 
 const uint8_t pal[] = {
@@ -191,6 +192,9 @@ bool is_open_tile (tile_type t) {
     return t == TILE_EMPTY || t == TILE_SAND;
 }
 
+bool is_player (tile_type t) {
+    return t == TILE_PLAYER || t == TILE_PLAYER_TAIL;
+}
 
 tile tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
@@ -679,10 +683,10 @@ dir rotate_right(dir *d) {
 
 void update_firefly(uint8_t x, uint8_t y, dir *d) {
     // if touching player - explode
-    if (get_tile(x, y - 1)->type == TILE_PLAYER ||
-        get_tile(x, y + 1)->type == TILE_PLAYER ||
-        get_tile(x - 1, y)->type == TILE_PLAYER ||
-        get_tile(x + 1, y)->type == TILE_PLAYER) {
+    if (is_player(get_tile(x, y - 1)->type) ||
+        is_player(get_tile(x, y + 1)->type) ||
+        is_player(get_tile(x - 1, y)->type) ||
+        is_player(get_tile(x + 1, y)->type)) {
         explode(x, y, false);
         return;
     }
