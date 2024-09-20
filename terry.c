@@ -47,9 +47,6 @@ uint8_t pixels[PIX_H][PIX_W] = {0};
 #define TILE_COLS ((SCR_TW * 2)+1)
 #define TILE_ROWS ((SCR_TH * 2)+1)
 
-uint8_t cam_x = 0;
-uint8_t cam_t = 0;
-
 typedef struct { int8_t x; int8_t y; } dir;
 typedef struct { uint8_t x; uint8_t y; } point;
 
@@ -61,7 +58,7 @@ typedef struct {
     dir  dir;
     int16_t lives;
     uint8_t slot;
-    uint8_t tail;
+    uint16_t tail;
     bool got_diamond;
     bool moved;
     bool dig;
@@ -298,7 +295,6 @@ void set_tile_and_data_ticks(uint8_t x, uint8_t y, tile_type t, int ticks) {
     }
 }
 
-
 void move_tile(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile(x, y, TILE_EMPTY);
     set_tile(x + d.x, y + d.y, t);
@@ -309,6 +305,27 @@ void move_tile_dir(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile_and_data_dir(x + d.x, y + d.y, t, d);
 }
 
+bool load_level(const char* file_name) {
+    FILE* file = fopen(file_name, "r");
+    if (file == NULL) {
+        printf("Failed to open file %s\n", file_name);
+        return false;
+    }
+    uint32_t w = 0;
+    uint32_t h = 0;
+    fscanf(file, "%d", &w);
+    fscanf(file, "%d", &h);
+
+    uint32_t tt_idx;
+    for (uint8_t i = 0; i < h; i++) {
+        for (uint8_t j = 0; j < w; j++) {
+            fscanf(file, "%d,", &tt_idx);
+            set_tile(j, i, tt_idx);
+        }
+    }
+    fclose(file);
+    return true;
+}
 
 void render_tiles(player_state *s, bool flash) {
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
@@ -358,7 +375,7 @@ void render_tiles(player_state *s, bool flash) {
                         }
                         break;
                     case TILE_PLAYER:
-                        *cur = (!s->dig ? 226 : 0xc3)  + (rand() % 5);
+                        *cur = !s->dig ? pal[10] :(0xe0 + (rand() % 5));
                         if (j == 1) {
                             if (s->dir.x < 0) {
                                 if (i == 1 || i == 3) *cur = 0xcd;
@@ -446,7 +463,7 @@ void random_level(uint8_t player_x, uint8_t player_y) {
         }
     }
 
-    set_tile(player_x, player_y, TILE_PLAYER);
+    //set_tile(player_x, player_y, TILE_PLAYER);
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
@@ -854,6 +871,7 @@ void reset(player_state *s) {
     s->y = 5;
     s->lives = 16;
     random_level(s->x, s->y);
+    load_level("level01.txt");
 }
 
 int main() {
