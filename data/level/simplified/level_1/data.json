@@ -1,0 +1,13 @@
+{
+	"identifier": "level_1",
+	"uniqueIdentifer": "c31f5f70-73f0-11ef-b1db-190831377167",
+	"x": 180,
+	"y": 0,
+	"width": 165,
+	"height": 100,
+	"bgColor": "#696A79",
+	"neighbourLevels": [],
+	"customFields" : {},
+	"layers": [],
+	"entities" : {}
+}

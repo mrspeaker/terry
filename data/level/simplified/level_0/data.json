@@ -1,0 +1,60 @@
+{
+	"identifier": "level_0",
+	"uniqueIdentifer": "13888d30-73f0-11ef-b1db-2544b6e3da1e",
+	"x": 0,
+	"y": 0,
+	"width": 165,
+	"height": 100,
+	"bgColor": "#BF00FF",
+	"neighbourLevels": [],
+	"customFields" : {},
+	"layers": [],
+	"entities": {
+		"door": [
+			{
+				"id": "door",
+				"iid": "a4c842f0-73f0-11ef-b1db-114703de0d3f",
+				"layer": "ents",
+				"x": 8,
+				"y": 24,
+				"width": 4,
+				"height": 4,
+				"color": 16122057,
+				"customFields" : {}
+			},
+			{
+				"id": "door",
+				"iid": "a66d1950-73f0-11ef-b1db-4525b4e1ef01",
+				"layer": "ents",
+				"x": 16,
+				"y": 48,
+				"width": 4,
+				"height": 4,
+				"color": 16122057,
+				"customFields" : {}
+			},
+			{
+				"id": "door",
+				"iid": "a7025470-73f0-11ef-b1db-2d05a555b970",
+				"layer": "ents",
+				"x": 24,
+				"y": 72,
+				"width": 4,
+				"height": 4,
+				"color": 16122057,
+				"customFields" : {}
+			},
+			{
+				"id": "door",
+				"iid": "a77ed770-73f0-11ef-b1db-2b89ff02dea3",
+				"layer": "ents",
+				"x": 32,
+				"y": 60,
+				"width": 4,
+				"height": 4,
+				"color": 16122057,
+				"customFields" : {}
+			}
+		]
+	}
+}

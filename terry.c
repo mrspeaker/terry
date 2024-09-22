@@ -76,6 +76,7 @@ typedef enum {
     TILE_EXP,
     TILE_EXP_DIAMOND,
     TILE_FIREFLY,
+    TILE_LASER,
     TILE_PLAYER,
     TILE_PLAYER_TAIL,
     TILE_ROCK,
@@ -84,6 +85,19 @@ typedef enum {
     TILE_SAND,
     TILE__LEN
 } tile_type;
+
+tile_type savefile_idx[] = {
+    [0] = TILE_EMPTY,
+    [1] = TILE_EMPTY,
+    [2] = TILE_BEDROCK,
+    [3] = TILE_DIAMOND,
+    [4] = TILE_ROCK,
+    [5] = TILE_SAND,
+    [6] = TILE_PLAYER,
+    [7] = TILE_FIREFLY,
+    [8] = TILE_SANDSTONE,
+    [9] = TILE_LASER
+};
 
 typedef struct {
     bool round;
@@ -97,9 +111,9 @@ typedef struct {
 
 const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EMPTY] =        { F, F, T, F },
-    [TILE_BEDROCK] =      { F, F, F, F },
+    [TILE_BEDROCK] =      { T, F, F, F },
     [TILE_PLAYER] =       { F, T, T, F },
-    [TILE_PLAYER_TAIL] =  { F, T, F, F },
+    [TILE_PLAYER_TAIL] =  { T, T, F, F },
     [TILE_ROCK] =         { T, F, T, T },
     [TILE_ROCK_FALLING] = { F, F, T, F },
     [TILE_SANDSTONE] =    { T, F, T, T },
@@ -110,6 +124,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_BALLOON_RISING] = { F, F, T, F },
     [TILE_EXP] =          { F, F, F, F },
     [TILE_EXP_DIAMOND] =  { F, F, F, F },
+    [TILE_LASER] =        { F, F, F, F },
     [TILE_FIREFLY] =      { F, T, T, F },
     [TILE_AMOEBA] =       { F, F, F, F },
     [TILE_BULLET] =       { F, T, T, F },
@@ -311,16 +326,23 @@ bool load_level(const char* file_name) {
         printf("Failed to open file %s\n", file_name);
         return false;
     }
-    uint32_t w = 0;
-    uint32_t h = 0;
-    fscanf(file, "%d", &w);
-    fscanf(file, "%d", &h);
+    uint32_t w = TILE_COLS;
+    uint32_t h = TILE_ROWS;
+    //fscanf(file, "%d", &w);
+    //fscanf(file, "%d", &h);
 
     uint32_t tt_idx;
-    for (uint8_t i = 0; i < h; i++) {
-        for (uint8_t j = 0; j < w; j++) {
+    for (uint8_t i = 0; i < h+1; i++) {
+        for (uint8_t j = 0; j < w+ 1; j++) {
             fscanf(file, "%d,", &tt_idx);
-            set_tile(j, i, tt_idx);
+            tile_type t = savefile_idx[tt_idx];
+            switch (t) {
+            case TILE_LASER:
+                set_tile_and_data_dir(j, i, t, (dir){1,0});
+                break;
+            default:
+                set_tile(j, i, t);
+            }
         }
     }
     fclose(file);
@@ -755,6 +777,26 @@ void update_amoeba(uint8_t x, uint8_t y) {
     }
 }
 
+void update_laser(uint8_t x, uint8_t y, dir *d) {
+    int8_t xo = d->x;
+    int8_t yo = d->y;
+    bool hit = false;
+    while (!hit) {
+        tile_type t = get_tile(x + xo, y + yo)->type;
+        tile_deets td = tiledefs[t];
+        if (is_open_tile(t)) {
+            //set_tile(x + xo, y + yo, TILE_SANDSTONE);
+            xo += d->x;
+            yo += d->y;
+        } else {
+            hit = true;
+            if (td.explodable) {
+                explode(x + xo, y+ yo, true);
+            }
+        }
+    }
+}
+
 void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
@@ -825,6 +867,9 @@ bool tick_tiles(player_state *s) {
                 break;
             case TILE_FIREFLY: update_firefly(i, j, &tile->tile_data.data.dir); break;
             case TILE_AMOEBA: update_amoeba(i, j);
+            case TILE_LASER:
+                update_laser(i, j, &tile->tile_data.data.dir);
+                break;
             default:
                 break;
             }
@@ -870,8 +915,8 @@ void reset(player_state *s) {
     s->x = 5;
     s->y = 5;
     s->lives = 16;
-    random_level(s->x, s->y);
-    load_level("level01.txt");
+    //random_level(s->x, s->y);
+    load_level("data/level/simplified/level_0/tiles.csv");
 }
 
 int main() {
