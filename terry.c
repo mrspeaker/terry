@@ -705,6 +705,9 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
             s->x = x + dx;
             s->y = y + dy;
         }
+    } else if (t == TILE_PLAYER_TAIL) {
+        set_tile_and_data_ticks(x, y, TILE_PLAYER_TAIL, s->tail++);
+        set_tile(x + dx, y + dy, TILE_PLAYER);
     } else if (t == TILE_DIAMOND) {
         if (dig) {
             set_tile(x + dx, y + dy, TILE_EMPTY);
