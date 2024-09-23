@@ -69,6 +69,7 @@ typedef enum {
     TILE_AMOEBA,
     TILE_BALLOON,
     TILE_BALLOON_RISING,
+    TILE_BEAM,
     TILE_BEDROCK,
     TILE_BULLET,
     TILE_DIAMOND,
@@ -112,6 +113,7 @@ typedef struct {
 const tile_deets tiledefs[TILE__LEN] = {
     [TILE_EMPTY] =        { F, F, T, F },
     [TILE_BEDROCK] =      { T, F, F, F },
+    [TILE_BEAM] =         { F, F, F, F },
     [TILE_PLAYER] =       { F, T, T, F },
     [TILE_PLAYER_TAIL] =  { T, T, F, F },
     [TILE_ROCK] =         { T, F, T, T },
@@ -176,6 +178,12 @@ const uint8_t tile_gfx[][16] = {
         0,5,6,0,
         0,0,0,0,
     },
+    [TILE_BEAM] = {
+        0,0,0,0,
+        1,1,1,1,
+        10,10,10,10,
+        0,0,0,0,
+    },
 };
 
 typedef enum {
@@ -201,7 +209,11 @@ typedef struct {
 tile bedrocked = {.type=TILE_BEDROCK, .tile_data.type=TD_TICKS};
 
 bool is_open_tile (tile_type t) {
-    return t == TILE_EMPTY || t == TILE_SAND;
+    return t == TILE_EMPTY || t == TILE_SAND || t == TILE_BEAM;
+}
+
+bool is_empty_tile (tile_type t) {
+    return t == TILE_EMPTY || t == TILE_BEAM;
 }
 
 bool is_player (tile_type t) {
@@ -414,6 +426,10 @@ void render_tiles(player_state *s, bool flash) {
                         break;
                     case TILE_BULLET:
                         *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]]; break;
+                    case TILE_LASER:
+                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]]; break;
+                    case TILE_BEAM:
+                        *cur = pal[tile_gfx[TILE_BEAM][j * 4 + i]]; break;
 
                     default:
                         *cur = rand()%(232-196)+197;
@@ -489,7 +505,7 @@ void random_level(uint8_t player_x, uint8_t player_y) {
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
-    return get_tile(x, y)->type == TILE_EMPTY;
+    return is_empty_tile(get_tile(x, y)->type);
 }
 bool is_round(uint8_t x, uint8_t y) {
     return tiledefs[get_tile(x, y)->type].round;
@@ -512,11 +528,13 @@ void explode(uint8_t x, uint8_t y, bool diamond) {
     }
 }
 
+/// For tiles that are currently static, but can start falling
+/// if a space opens up below them
 void update_tile_fallable(uint8_t i, uint8_t j, tile_type t) {
     tile_type dn = get_tile(i, j + 1)->type;
     tile_deets td_dn = tiledefs[dn];
 
-    if (dn == TILE_EMPTY) {
+    if (is_empty_tile(dn)) {
         set_tile(i, j, t);
         // Roll to the left
     } else if (td_dn.round &&
@@ -550,7 +568,7 @@ void update_tile_falling(uint8_t i, uint8_t j, tile_type rest, tile_type fall) {
     tile_deets td_dn = tiledefs[dn];
 
     // Straight down
-    if (dn == TILE_EMPTY) {
+    if (is_empty_tile(dn)) {
         set_tile(i, j, TILE_EMPTY);
         set_tile(i, j + 1, fall);
 
@@ -785,13 +803,14 @@ void update_laser(uint8_t x, uint8_t y, dir *d) {
         tile_type t = get_tile(x + xo, y + yo)->type;
         tile_deets td = tiledefs[t];
         if (is_open_tile(t)) {
-            //set_tile(x + xo, y + yo, TILE_SANDSTONE);
+            set_tile(x + xo, y + yo, TILE_BEAM);
             xo += d->x;
             yo += d->y;
         } else {
             hit = true;
             if (td.explodable) {
-                explode(x + xo, y+ yo, true);
+                explode(x + xo, y + yo, true);
+                set_tile(x + xo, y + yo, TILE_BEAM);
             }
         }
     }
@@ -870,6 +889,11 @@ bool tick_tiles(player_state *s) {
             case TILE_LASER:
                 update_laser(i, j, &tile->tile_data.data.dir);
                 break;
+            case TILE_BEAM:
+                // Beams are "active" - they are updated every frame by the laser.
+                // So if we get here, we are at an unticked tile: which means it WASN'T
+                // drawn by the laser this frame... so it is blocked by something and we can erase it
+                set_tile(i, j, TILE_EMPTY);
             default:
                 break;
             }
