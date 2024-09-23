@@ -98,7 +98,8 @@ tile_type savefile_idx[] = {
     [7] = TILE_FIREFLY,
     [8] = TILE_SANDSTONE,
     [9] = TILE_LASER,
-    [10] = TILE_LASER
+    [10] = TILE_LASER,
+    [11] = TILE_AMOEBA
 };
 
 typedef struct {
