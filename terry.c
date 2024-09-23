@@ -97,7 +97,8 @@ tile_type savefile_idx[] = {
     [6] = TILE_PLAYER,
     [7] = TILE_FIREFLY,
     [8] = TILE_SANDSTONE,
-    [9] = TILE_LASER
+    [9] = TILE_LASER,
+    [10] = TILE_LASER
 };
 
 typedef struct {
@@ -350,7 +351,13 @@ bool load_level(const char* file_name) {
             tile_type t = savefile_idx[tt_idx];
             switch (t) {
             case TILE_LASER:
-                set_tile_and_data_dir(j, i, t, (dir){1,0});
+                if (tt_idx == 10) {
+                    // right facing
+                    set_tile_and_data_dir(j, i, t, (dir){-1,0});
+                } else {
+                    // left facing
+                    set_tile_and_data_dir(j, i, t, (dir){1,0});
+                }
                 break;
             default:
                 set_tile(j, i, t);
