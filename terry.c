@@ -383,18 +383,28 @@ bool load_level(const char* file_name) {
 }
 
 void render_tiles_to_pixels(player_state *s, bool flash) {
-    uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
-    uint8_t y2 = y1 + SCR_TH;
+    // update camera
+    int8_t cxo = (s->x * px_per_tile) - s->cam_x;
+    if (cxo < 0) s->cam_x--;
+    if (cxo > 0) s->cam_x++;
 
     uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, s->x - (SCR_TW / 2)));
     uint8_t x2 = x1 + SCR_TW;
+
+    uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
+    uint8_t y2 = y1 + SCR_TH;
 
     for (uint8_t y = y1; y < y2; y++) {
         for (uint8_t x = x1; x < x2; x++) {
             tile *t = get_tile(x, y);
             for (uint8_t j = 0; j < px_per_tile; j++) {
                 for (uint8_t i = 0; i < px_per_tile; i++) {
-                    uint8_t *cur = &(pixels[(y - y1) * px_per_tile + j][(x - x1) * px_per_tile + i]);
+                    int16_t xo = (x - x1) * px_per_tile + i; //- (s->cam_x % px_per_tile);
+                    if (xo < 0 || xo >= PIX_W) continue;
+                    int16_t yo = (y - y1) * px_per_tile + j;
+                    if (yo < 0 || yo >= PIX_H) continue;
+
+                    uint8_t *cur = &(pixels[yo][xo]);
                     if (flash) {
                         *cur = 48 + (rand() % 3);
                         continue;
@@ -968,6 +978,9 @@ void resize() {
 void reset(player_state *s) {
     s->x = 5;
     s->y = 5;
+    s->cam_x = s->x * px_per_tile;
+    s->cam_y = s->y * px_per_tile;
+
     s->lives = 16;
     load_level("data/level/simplified/level_1/tiles.csv");
 }
@@ -1036,7 +1049,7 @@ int main() {
         set_bg(C_BLACK);
         set_fg(C_WHITE);
         cursor_to(scr_w / 2 - (PIX_W / 2), (scr_h / 2) + (PIX_H / 4) + 1);
-        printf("energy: %d | ", s.lives);
+        printf("energy: %.2f %d | ", (float)s.cam_x/px_per_tile, s.x);
         printf("move: wsad | r: restart | spc: 0=dig, 1=rock | cur: ");
         printf(s.slot == 0 ? "shoot " : "dig  ");
 
