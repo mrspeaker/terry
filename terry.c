@@ -44,8 +44,9 @@ struct winsize win;
 
 uint8_t pixels[PIX_H][PIX_W] = {0};
 
-#define TILE_COLS ((SCR_TW * 2)+1)
-#define TILE_ROWS ((SCR_TH * 2)+1)
+// World size
+#define TILE_COLS 41
+#define TILE_ROWS 25
 
 typedef struct { int8_t x; int8_t y; } dir;
 typedef struct { uint8_t x; uint8_t y; } point;
@@ -346,10 +347,9 @@ bool load_level(const char* file_name) {
     //fscanf(file, "%d", &h);
 
     uint32_t tt_idx;
-    // TODO: why + 1 for rows & cols? Something fishy here!
-    for (uint8_t i = 0; i < h + 1; i++) {
-        for (uint8_t j = 0; j < w + 1; j++) {
-            fscanf(file, "%d,", &tt_idx); // is this correct to read LDtk file?
+    for (uint8_t i = 0; i < h; i++) {
+        for (uint8_t j = 0; j < w; j++) {
+            fscanf(file, "%d,", &tt_idx);
             tile_type t = savefile_idx[tt_idx];
             switch (t) {
             case TILE_LASER:
