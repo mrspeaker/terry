@@ -896,7 +896,7 @@ bool tick_tiles(player_state *s) {
                 }
                 break;
             case TILE_FIREFLY: update_firefly(i, j, &tile->tile_data.data.dir); break;
-            case TILE_AMOEBA: update_amoeba(i, j);
+            case TILE_AMOEBA: update_amoeba(i, j); break;
             case TILE_LASER:
                 update_laser(i, j, &tile->tile_data.data.dir);
                 break;
