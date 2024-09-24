@@ -346,9 +346,10 @@ bool load_level(const char* file_name) {
     //fscanf(file, "%d", &h);
 
     uint32_t tt_idx;
-    for (uint8_t i = 0; i < h+1; i++) {
-        for (uint8_t j = 0; j < w+ 1; j++) {
-            fscanf(file, "%d,", &tt_idx);
+    // TODO: why + 1 for rows & cols? Something fishy here!
+    for (uint8_t i = 0; i < h + 1; i++) {
+        for (uint8_t j = 0; j < w + 1; j++) {
+            fscanf(file, "%d,", &tt_idx); // is this correct to read LDtk file?
             tile_type t = savefile_idx[tt_idx];
             switch (t) {
             case TILE_LASER:
@@ -363,6 +364,7 @@ bool load_level(const char* file_name) {
             default:
                 set_tile(j, i, t);
             }
+
         }
     }
     fclose(file);
@@ -388,25 +390,30 @@ void render_tiles(player_state *s, bool flash) {
                     }
 
                     switch (t->type) {
-                    case TILE_EMPTY: *cur = C_BLACK; break;
+                    case TILE_EMPTY:
+                        *cur = C_BLACK;
+                        break;
                     case TILE_ROCK:
                     case TILE_ROCK_FALLING:
-                        *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]];
                         break;
                     case TILE_BEDROCK:
                         *cur = i && !j ? 236: 235;
                         break;
                     case TILE_DIAMOND:
                     case TILE_DIAMOND_FALLING:
-                        *cur = pal[tile_gfx[TILE_DIAMOND][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_DIAMOND][j * 4 + i]];
                         break;
                     case TILE_SAND:
-                        *cur = pal[4]; break;
+                        *cur = pal[4];
+                        break;
                     case TILE_SANDSTONE:
-                        *cur = pal[tile_gfx[TILE_SANDSTONE][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_SANDSTONE][j * 4 + i]];
+                        break;
                     case TILE_BALLOON:
                     case TILE_BALLOON_RISING:
-                        *cur = pal[tile_gfx[TILE_BALLOON][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_BALLOON][j * 4 + i]];
+                        break;
                     case TILE_FIREFLY:
                         *cur = 0xc5 + (rand() % 5);
                         if (i == 0 && j == 0) {
@@ -433,14 +440,20 @@ void render_tiles(player_state *s, bool flash) {
                         *cur = 17 + (rand() % 5);
                         break;
                     case TILE_BULLET:
-                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]];
+                        break;
                     case TILE_LASER:
-                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]]; break;
+                        *cur = pal[tile_gfx[TILE_BULLET][j * 4 + i]];
+                        break;
                     case TILE_BEAM:
-                        *cur = pal[tile_gfx[TILE_BEAM][j * 4 + i]]; break;
-
+                        *cur = pal[tile_gfx[TILE_BEAM][j * 4 + i]];
+                        break;
                     default:
                         *cur = rand()%(232-196)+197;
+                        if (t->type > 255) {
+                            // ERROR! should not be here. Type has overflowed
+                            *cur = 1;
+                        }
                         break;
                     }
                 }
@@ -449,7 +462,7 @@ void render_tiles(player_state *s, bool flash) {
     }
 }
 
-void random_level(uint8_t player_x, uint8_t player_y) {
+void random_level() {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
             if (x == 0 || x == TILE_COLS - 1 || y == 0 || y == TILE_ROWS -1) {
@@ -508,8 +521,6 @@ void random_level(uint8_t player_x, uint8_t player_y) {
             set_tile(xo, j, TILE_BEDROCK);
         }
     }
-
-    //set_tile(player_x, player_y, TILE_PLAYER);
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
@@ -950,7 +961,6 @@ void reset(player_state *s) {
     s->x = 5;
     s->y = 5;
     s->lives = 16;
-    //random_level(s->x, s->y);
     load_level("data/level/simplified/level_0/tiles.csv");
 }
 
@@ -971,8 +981,8 @@ int main() {
 
     player_state s;
     reset(&s);
-
     bool running = true;
+
     while(running){
         s.dx = 0; // stop moving
         s.dy = 0;
