@@ -35,6 +35,8 @@
 #define C_MIDGREY 245
 #define C_LIGHTGREY 250
 #define C_YELLOW 226
+#define C_DARKEST_GREY 235
+
 
 #define delay 1000000 / 30
 
@@ -57,6 +59,8 @@ typedef struct {
     int8_t dx;
     int8_t dy;
     dir  dir;
+    uint8_t cam_x;
+    uint8_t cam_y;
     int16_t lives;
     uint8_t slot;
     uint16_t tail;
@@ -147,10 +151,17 @@ const uint8_t pal[] = {
     [7] = C_LIGHTGREY,
     [8] = 51,
     [9] = 43,
-    [10] = C_YELLOW
+    [10] = C_YELLOW,
+    [11] = C_DARKEST_GREY
 };
 
 const uint8_t tile_gfx[][16] = {
+    [TILE_BEDROCK] = {
+        11,11,11,11,
+        11, 0, 5,11,
+        11,11,11,11,
+        11,11,11,11
+    },
     [TILE_ROCK] = {
         4,7,7,4,
         6,6,6,7,
@@ -371,7 +382,7 @@ bool load_level(const char* file_name) {
     return true;
 }
 
-void render_tiles(player_state *s, bool flash) {
+void render_tiles_to_pixels(player_state *s, bool flash) {
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
     uint8_t y2 = y1 + SCR_TH;
 
@@ -398,7 +409,7 @@ void render_tiles(player_state *s, bool flash) {
                         *cur = pal[tile_gfx[TILE_ROCK][j * 4 + i]];
                         break;
                     case TILE_BEDROCK:
-                        *cur = i && !j ? 236: 235;
+                        *cur = pal[tile_gfx[TILE_BEDROCK][j * 4 + i]];
                         break;
                     case TILE_DIAMOND:
                     case TILE_DIAMOND_FALLING:
@@ -842,8 +853,7 @@ void reset_ticked() {
     memset(tiles_ticked, false, TILE_COLS * TILE_ROWS);
 }
 
-bool tick_tiles(player_state *s) {
-    bool flash = false;
+void tick_tiles(player_state *s) {
     reset_ticked();
     for (int8_t j = TILE_ROWS-1; j >= 0; j--) {
         for (uint8_t i = 0; i < TILE_COLS; i++) {
@@ -885,7 +895,6 @@ bool tick_tiles(player_state *s) {
                 update_player(i, j, s);
                 if (s->got_diamond) {
                     s->lives += 16;
-                    flash = true;
                 }
                 if (s->moved) {
                     s->lives -= 1;
@@ -921,7 +930,6 @@ bool tick_tiles(player_state *s) {
             }
         }
     }
-    return flash;
 }
 
 void bg_fill() {
@@ -961,7 +969,7 @@ void reset(player_state *s) {
     s->x = 5;
     s->y = 5;
     s->lives = 16;
-    load_level("data/level/simplified/level_0/tiles.csv");
+    load_level("data/level/simplified/level_1/tiles.csv");
 }
 
 int main() {
@@ -977,7 +985,6 @@ int main() {
     ansi_keys *keys = make_ansi_keys();
 
     uint32_t t = 0;
-    int8_t flash = 0;
 
     player_state s;
     reset(&s);
@@ -1019,18 +1026,11 @@ int main() {
         }
         if (s.dx != 0) s.dy = 0;
 
-        // Update
-        t++;
-
-        if (t % 4 == 0) {
-            if (tick_tiles(&s)) {
-                flash = 1;
-            }
+        // Update every 4 frames
+        if (++t % 4 == 0) {
+            tick_tiles(&s);
         }
-        render_tiles(&s, flash > 0);
-        if (--flash < 0) flash = 0;
-
-        // Render
+        render_tiles_to_pixels(&s, s.got_diamond);
         render_pixels();
 
         set_bg(C_BLACK);
