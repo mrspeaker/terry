@@ -389,14 +389,13 @@ bool load_level(const char* file_name, player_state *s) {
 
 void render_tiles_to_pixels(player_state *s, bool flash) {
     // update camera
-    int8_t cxo = (s->x * px_per_tile) - s->cam_x;
+    /*int8_t cxo = (s->x * px_per_tile) - s->cam_x;
     if (cxo < 0) s->cam_x--;
     if (cxo > 0) s->cam_x++;
-
     int8_t cx = s->cam_x / px_per_tile;
-    uint8_t c_rem = s->cam_x % px_per_tile;
+    uint8_t c_rem = s->cam_x % px_per_tile;*/
 
-    uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, cx - (SCR_TW / 2)));
+    uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, s->x - (SCR_TW / 2)));
     uint8_t x2 = x1 + SCR_TW;
 
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
@@ -407,7 +406,7 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
             tile *t = get_tile(x, y);
             for (uint8_t j = 0; j < px_per_tile; j++) {
                 for (uint8_t i = 0; i < px_per_tile; i++) {
-                    int16_t xo = (x - x1) * px_per_tile + i + (x1 > 0 ? (3-c_rem) : 0);
+                    int16_t xo = (x - x1) * px_per_tile + i;// + (x1 > 0 ? (3-c_rem) : 0);
                     if (xo < 0 || xo >= PIX_W) continue;
                     int16_t yo = (y - y1) * px_per_tile + j;
                     if (yo < 0 || yo >= PIX_H) continue;
