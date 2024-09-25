@@ -373,8 +373,10 @@ bool load_level(const char* file_name, player_state *s) {
                 }
                 break;
             case TILE_PLAYER:
-                s->x = i;
-                s->y = j;
+                s->x = j;
+                s->y = i;
+                set_tile(j, i, t);
+                break;
             default:
                 set_tile(j, i, t);
             }
