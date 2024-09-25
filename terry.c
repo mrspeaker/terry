@@ -122,7 +122,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_BEDROCK] =      { T, F, F, F },
     [TILE_BEAM] =         { F, F, F, F },
     [TILE_PLAYER] =       { F, T, T, F },
-    [TILE_PLAYER_TAIL] =  { T, T, F, F },
+    [TILE_PLAYER_TAIL] =  { F, T, F, F },
     [TILE_ROCK] =         { T, F, T, T },
     [TILE_ROCK_FALLING] = { F, F, T, F },
     [TILE_SANDSTONE] =    { T, F, T, T },
@@ -986,7 +986,7 @@ void reset(player_state *s) {
     s->x = 0;
     s->y = 0;
     s->lives = 16;
-    load_level("data/level/simplified/level_0/tiles.csv", s);
+    load_level("data/level/simplified/level_1/tiles.csv", s);
     s->cam_x = s->x * px_per_tile;
     s->cam_y = s->y * px_per_tile;
 }
