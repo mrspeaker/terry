@@ -38,7 +38,7 @@
 #define C_DARKEST_GREY 235
 
 
-#define delay 1000000 / 5
+#define delay 1000000 / 30
 
 uint16_t scr_w = 0;
 uint16_t scr_h = 0;
@@ -407,7 +407,7 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
             tile *t = get_tile(x, y);
             for (uint8_t j = 0; j < px_per_tile; j++) {
                 for (uint8_t i = 0; i < px_per_tile; i++) {
-                    int16_t xo = (x - x1) * px_per_tile + i + (x1 > 0 ? (4-c_rem) : 0);
+                    int16_t xo = (x - x1) * px_per_tile + i + (x1 > 0 ? (3-c_rem) : 0);
                     if (xo < 0 || xo >= PIX_W) continue;
                     int16_t yo = (y - y1) * px_per_tile + j;
                     if (yo < 0 || yo >= PIX_H) continue;
@@ -987,7 +987,7 @@ void reset(player_state *s) {
     s->x = 0;
     s->y = 0;
     s->lives = 16;
-    load_level("data/level/simplified/level_1/tiles.csv", s);
+    load_level("data/level/simplified/level_0/tiles.csv", s);
     s->cam_x = s->x * px_per_tile;
     s->cam_y = s->y * px_per_tile;
 }
