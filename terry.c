@@ -38,7 +38,7 @@
 #define C_DARKEST_GREY 235
 
 
-#define delay 1000000 / 30
+#define delay 1000000 / 5
 
 uint16_t scr_w = 0;
 uint16_t scr_h = 0;
@@ -346,7 +346,7 @@ void move_tile_dir(uint8_t x, uint8_t y, dir d, tile_type t) {
     set_tile_and_data_dir(x + d.x, y + d.y, t, d);
 }
 
-bool load_level(const char* file_name) {
+bool load_level(const char* file_name, player_state *s) {
     FILE* file = fopen(file_name, "r");
     if (file == NULL) {
         printf("Failed to open file %s\n", file_name);
@@ -372,6 +372,9 @@ bool load_level(const char* file_name) {
                     set_tile_and_data_dir(j, i, t, (dir){1,0});
                 }
                 break;
+            case TILE_PLAYER:
+                s->x = i;
+                s->y = j;
             default:
                 set_tile(j, i, t);
             }
@@ -388,7 +391,10 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
     if (cxo < 0) s->cam_x--;
     if (cxo > 0) s->cam_x++;
 
-    uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, s->x - (SCR_TW / 2)));
+    int8_t cx = s->cam_x / px_per_tile;
+    uint8_t c_rem = s->cam_x % px_per_tile;
+
+    uint8_t x1 = min(TILE_COLS - SCR_TW, max(0, cx - (SCR_TW / 2)));
     uint8_t x2 = x1 + SCR_TW;
 
     uint8_t y1 = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2)));
@@ -399,7 +405,7 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
             tile *t = get_tile(x, y);
             for (uint8_t j = 0; j < px_per_tile; j++) {
                 for (uint8_t i = 0; i < px_per_tile; i++) {
-                    int16_t xo = (x - x1) * px_per_tile + i; //- (s->cam_x % px_per_tile);
+                    int16_t xo = (x - x1) * px_per_tile + i + (x1 > 0 ? (4-c_rem) : 0);
                     if (xo < 0 || xo >= PIX_W) continue;
                     int16_t yo = (y - y1) * px_per_tile + j;
                     if (yo < 0 || yo >= PIX_H) continue;
@@ -976,13 +982,12 @@ void resize() {
 }
 
 void reset(player_state *s) {
-    s->x = 5;
-    s->y = 5;
+    s->x = 0;
+    s->y = 0;
+    s->lives = 16;
+    load_level("data/level/simplified/level_1/tiles.csv", s);
     s->cam_x = s->x * px_per_tile;
     s->cam_y = s->y * px_per_tile;
-
-    s->lives = 16;
-    load_level("data/level/simplified/level_1/tiles.csv");
 }
 
 int main() {
@@ -1049,7 +1054,7 @@ int main() {
         set_bg(C_BLACK);
         set_fg(C_WHITE);
         cursor_to(scr_w / 2 - (PIX_W / 2), (scr_h / 2) + (PIX_H / 4) + 1);
-        printf("energy: %.2f %d | ", (float)s.cam_x/px_per_tile, s.x);
+        printf("energy: %.2f %d | ", (float)s.cam_x / px_per_tile, s.x);
         printf("move: wsad | r: restart | spc: 0=dig, 1=rock | cur: ");
         printf(s.slot == 0 ? "shoot " : "dig  ");
 
