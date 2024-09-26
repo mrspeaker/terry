@@ -230,6 +230,25 @@ typedef struct {
     tagged_tile_data tile_data;
 } tile;
 
+typedef struct {
+    uint8_t x;
+    uint8_t y;
+    int8_t dx;
+    int8_t dy;
+    int8_t life;
+} particle;
+
+#define MAX_PARTICLES 10
+particle ps[MAX_PARTICLES] = {0};
+
+void render_particles() {
+    for (uint32_t i = 0; i < MAX_PARTICLES; i++) {
+        //if (ps[i].life <= 0) continue;
+        uint8_t *cur = &(pixels[ps[i].y][ps[i].x]);
+        *cur = 32;
+    }
+}
+
 tile bedrocked = {.type=TILE_BEDROCK, .tile_data.type=TD_TICKS};
 
 bool is_open_tile (tile_type t) {
@@ -1101,6 +1120,7 @@ int main() {
             tick_tiles(&s);
         }
         render_tiles_to_pixels(&s, false);
+        render_particles();
         render_pixels();
 
         set_bg(C_BLACK);
