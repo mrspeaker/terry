@@ -490,7 +490,7 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
     }
 }
 
-void random_level() {
+void random_level(int8_t px, int8_t py) {
     for (uint8_t y = 0; y < TILE_ROWS; y++) {
         for (uint8_t x = 0; x < TILE_COLS; x++) {
             if (x == 0 || x == TILE_COLS - 1 || y == 0 || y == TILE_ROWS -1) {
@@ -549,6 +549,8 @@ void random_level() {
             set_tile(xo, j, TILE_BEDROCK);
         }
     }
+
+    set_tile(px, py, TILE_PLAYER);
 }
 
 bool is_empty(uint8_t x, uint8_t y) {
@@ -982,11 +984,15 @@ void resize() {
     bg_fill();
 }
 
-void reset(player_state *s) {
-    s->x = 0;
-    s->y = 0;
+void reset(player_state *s, bool rando) {
+    s->x = 2;
+    s->y = 2;
     s->lives = 16;
-    load_level("data/level/simplified/level_1/tiles.csv", s);
+    if (rando) {
+        random_level(s->x, s->y);
+    } else {
+        load_level("data/level/simplified/level_1/tiles.csv", s);
+    }
     s->cam_x = s->x * px_per_tile;
     s->cam_y = s->y * px_per_tile;
 }
@@ -1006,7 +1012,7 @@ int main() {
     uint32_t t = 0;
 
     player_state s;
-    reset(&s);
+    reset(&s, false);
     bool running = true;
 
     while(running){
@@ -1041,7 +1047,11 @@ int main() {
         }
         if (key_pressed('r', keys)) {
             key_unpress('r', keys);
-            reset(&s);
+            reset(&s, false);
+        }
+        if (key_pressed('e', keys)) {
+            key_unpress('e', keys);
+            reset(&s, true);
         }
         if (s.dx != 0) s.dy = 0;
 
