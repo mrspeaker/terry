@@ -79,6 +79,7 @@ typedef enum {
     TILE_BULLET,
     TILE_DIAMOND,
     TILE_DIAMOND_FALLING,
+    TILE_DISSOLVER,
     TILE_EXP,
     TILE_EXP_DIAMOND,
     TILE_FIREFLY,
@@ -105,7 +106,8 @@ tile_type savefile_idx[] = {
     [9] = TILE_LASER,
     [10] = TILE_LASER,
     [11] = TILE_AMOEBA,
-    [12] = TILE_BALLOON
+    [12] = TILE_BALLOON,
+    [13] = TILE_DISSOLVER
 };
 
 typedef struct {
@@ -130,6 +132,7 @@ const tile_deets tiledefs[TILE__LEN] = {
     [TILE_SAND] =         { T, F, T, F },
     [TILE_DIAMOND] =      { T, F, T, F },
     [TILE_DIAMOND_FALLING] = { F, F, T, F},
+    [TILE_DISSOLVER] =    { T, F, F, F },
     [TILE_BALLOON] =      { T, F, T, T },
     [TILE_BALLOON_RISING] = { F, F, T, F },
     [TILE_EXP] =          { F, F, F, F },
@@ -199,6 +202,12 @@ const uint8_t tile_gfx[][16] = {
         10,10,10,10,
         0,0,0,0,
     },
+    [TILE_DISSOLVER] = {
+        3,5,3,5,
+        5,3,5,3,
+        3,5,3,5,
+        5,3,5,3,
+    },
 };
 
 typedef enum {
@@ -208,7 +217,7 @@ typedef enum {
 
 typedef union {
     dir dir;
-    int ticks;
+    int32_t ticks;
 } tile_data;
 
 typedef struct {
@@ -234,6 +243,11 @@ bool is_empty_tile (tile_type t) {
 bool is_player (tile_type t) {
     return t == TILE_PLAYER || t == TILE_PLAYER_TAIL;
 }
+
+bool is_alive (tile_type t) {
+    return is_player(t) || t == TILE_FIREFLY;
+}
+
 
 tile tiles[TILE_ROWS][TILE_COLS] = {0};
 bool tiles_ticked[TILE_ROWS][TILE_COLS] = {false};
@@ -378,6 +392,9 @@ bool load_level(const char* file_name, player_state *s) {
                 s->y = i;
                 set_tile(j, i, t);
                 break;
+            case TILE_DISSOLVER:
+                set_tile_and_data_ticks(j, i, t, -1);
+                break;
             default:
                 set_tile(j, i, t);
             }
@@ -433,6 +450,12 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
                     case TILE_DIAMOND_FALLING:
                         *cur = pal[tile_gfx[TILE_DIAMOND][j * 4 + i]];
                         break;
+                    case TILE_DISSOLVER:
+                        *cur = pal[tile_gfx[TILE_DISSOLVER][j * 4 + i]];
+                        if (t->tile_data.data.dir.x != -1) {
+                            *cur = 200 + t->tile_data.data.ticks;
+                        }
+                        break;
                     case TILE_SAND:
                         *cur = pal[4];
                         break;
@@ -479,10 +502,6 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
                         break;
                     default:
                         *cur = rand()%(232-196)+197;
-                        if (t->type > 255) {
-                            // ERROR! should not be here. Type has overflowed
-                            *cur = 1;
-                        }
                         break;
                     }
                 }
@@ -849,6 +868,25 @@ void update_amoeba(uint8_t x, uint8_t y) {
     }
 }
 
+void update_dissolver(uint8_t x, uint8_t y, tile *t) {
+    // if thing is alive, start crumbling.
+    if (t->tile_data.data.ticks >= 0) {
+        if (t->tile_data.data.ticks-- <= 0) {
+            set_tile(x, y, TILE_EMPTY);
+        }
+        return;
+    }
+
+    // Should we start dissolving?
+    if (is_player(get_tile(x, y - 1)->type) ||
+        is_player(get_tile(x, y + 1)->type) ||
+        is_player(get_tile(x - 1, y)->type) ||
+        is_player(get_tile(x + 1, y)->type)) {
+        t->tile_data.data.ticks = 10;
+        return;
+    }
+}
+
 void update_laser(uint8_t x, uint8_t y, dir *d) {
     int8_t xo = d->x;
     int8_t yo = d->y;
@@ -938,6 +976,7 @@ void tick_tiles(player_state *s) {
                 break;
             case TILE_FIREFLY: update_firefly(i, j, &tile->tile_data.data.dir); break;
             case TILE_AMOEBA: update_amoeba(i, j); break;
+            case TILE_DISSOLVER: update_dissolver(i, j, tile); break;
             case TILE_LASER:
                 update_laser(i, j, &tile->tile_data.data.dir);
                 break;
