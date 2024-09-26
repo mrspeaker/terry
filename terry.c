@@ -104,7 +104,8 @@ tile_type savefile_idx[] = {
     [8] = TILE_SANDSTONE,
     [9] = TILE_LASER,
     [10] = TILE_LASER,
-    [11] = TILE_AMOEBA
+    [11] = TILE_AMOEBA,
+    [12] = TILE_BALLOON
 };
 
 typedef struct {
@@ -738,7 +739,7 @@ void update_player(uint8_t x, uint8_t y, player_state *s) {
 
     if (is_open_tile(t)) {
         if (dig) {
-            if (s->slot == 1) {
+            if (s->slot == 0) {
                 set_tile(x + dx, y + dy, TILE_EMPTY);
             } else {
                 set_tile_and_data_dir(
@@ -835,7 +836,8 @@ void update_firefly(uint8_t x, uint8_t y, dir *d) {
 }
 
 void update_amoeba(uint8_t x, uint8_t y) {
-    if (rand()%250 != 0) {
+    // NOTE: not doing growing.
+    if (true || rand()%250 != 0) {
         return;
     }
     uint8_t di = rand() % 4;
@@ -1059,7 +1061,7 @@ int main() {
         if (++t % 4 == 0) {
             tick_tiles(&s);
         }
-        render_tiles_to_pixels(&s, s.got_diamond);
+        render_tiles_to_pixels(&s, false);
         render_pixels();
 
         set_bg(C_BLACK);

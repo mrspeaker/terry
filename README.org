@@ -3,4 +3,6 @@
 ** blocks to test:
 - block that pushes sideways, if possible.
 - block that bores slowly
+- ...or quickly, but breaks the tile once and it's gone
+  ...maybe, you touch it and it disolves
 - blocks that the player can bore (slows them down)
