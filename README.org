@@ -1,0 +1,5 @@
+* tez
+
+** blocks to test:
+- block that pushes sideways, if possible.
+- block that bores slowly
