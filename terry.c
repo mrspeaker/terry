@@ -882,7 +882,7 @@ void update_dissolver(uint8_t x, uint8_t y, tile *t) {
         is_player(get_tile(x, y + 1)->type) ||
         is_player(get_tile(x - 1, y)->type) ||
         is_player(get_tile(x + 1, y)->type)) {
-        t->tile_data.data.ticks = 10;
+        t->tile_data.data.ticks = 5;
         return;
     }
 }
