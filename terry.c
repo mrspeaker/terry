@@ -253,8 +253,29 @@ void init_particles() {
 
 void update_particles() {
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        ps[i].x += (rand() % 3) - 1;
-        ps[i].y += (rand() % 3) - 1;
+        if (ps[i].life == -1) {
+            ps[i].x += (rand() % 3) - 1;
+            ps[i].y += (rand() % 3) - 1;
+        } else {
+            ps[i].y -= 1;
+            if (ps[i].life--==0) {
+                ps[i].x = rand() % (TILE_COLS * px_per_tile);
+                ps[i].y = rand() % (TILE_ROWS * px_per_tile);
+            }
+        }
+    }
+}
+
+void set_particles(uint32_t x, uint32_t y, uint8_t num) {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (ps[i].life == -1) {
+            ps[i].life = 10;
+            ps[i].x = x + (rand() % 5) - 2;
+            ps[i].y = y + (rand() % 5) - 2;
+            if(--num <= 0) {
+                return;
+            }
+        }
     }
 }
 
@@ -1146,6 +1167,9 @@ int main() {
         // Update every 4 frames
         if (++s.t % 4 == 0) {
             tick_tiles(&s);
+            if (s.got_diamond) {
+                set_particles(s.x * px_per_tile + 1, s.y * px_per_tile + 1, 10);
+            }
         }
         update_particles();
         render_tiles_to_pixels(&s, false);
