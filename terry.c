@@ -230,6 +230,8 @@ typedef struct {
     tagged_tile_data tile_data;
 } tile;
 
+// ============= Particles ==================
+
 typedef struct {
     uint16_t x;
     uint16_t y;
@@ -241,6 +243,20 @@ typedef struct {
 #define MAX_PARTICLES 100
 particle ps[MAX_PARTICLES] = {0};
 
+void init_particles() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        ps[i].x = rand() % (TILE_COLS * px_per_tile);
+        ps[i].y = rand() % (TILE_ROWS * px_per_tile);
+    }
+}
+
+void update_particles() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        ps[i].x += (rand() % 3) - 1;
+        ps[i].y += (rand() % 3) - 1;
+    }
+}
+
 void render_particles(player_state *s) {
     uint16_t x = min(TILE_COLS - SCR_TW, max(0, s->x - (SCR_TW / 2))) * px_per_tile;
     uint16_t y = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2))) * px_per_tile;
@@ -250,9 +266,13 @@ void render_particles(player_state *s) {
         if (ps[i].x - x < 0 || ps[i].x - x >= PIX_W) continue;
         if (ps[i].y - y < 0 || ps[i].y - y >= PIX_H) continue;
         uint8_t *cur = &(pixels[ps[i].y - y][ps[i].x - x]);
-        *cur = 32;
+        if (rand() % 10 < 3) continue;
+        *cur = 32 + rand() % 10;
     }
 }
+
+// ===========================================
+
 
 tile bedrocked = {.type=TILE_BEDROCK, .tile_data.type=TD_TICKS};
 
@@ -1047,24 +1067,6 @@ void resize() {
     scr_w = win.ws_col;
     scr_h = win.ws_row;
     bg_fill();
-}
-
-void init_particles() {
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-        ps[i].x = rand() % (TILE_COLS * px_per_tile);
-        ps[i].y = rand() % (TILE_ROWS * px_per_tile);
-    }
-}
-
-void update_particles() {
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-        if (rand() % 10 == 0) {
-            ps[i].x += (rand() % 3) - 1;
-        }
-        if (rand() % 10 == 0) {
-            ps[i].y += (rand() % 3) - 1;
-        }
-    }
 }
 
 void reset(player_state *s, bool rando) {
