@@ -58,6 +58,7 @@ typedef struct {
     uint8_t y;
     int8_t dx;
     int8_t dy;
+    uint32_t t;
     dir  dir;
     uint8_t cam_x;
     uint8_t cam_y;
@@ -502,6 +503,7 @@ void render_tiles_to_pixels(player_state *s, bool flash) {
                         break;
                     case TILE_SAND:
                         *cur = pal[4];
+                        if (((i+j) % 2)) *cur = 0x3a; // checkerboard
                         break;
                     case TILE_SANDSTONE:
                         *cur = pal[tile_gfx[TILE_SANDSTONE][j * 4 + i]];
@@ -1096,8 +1098,6 @@ int main() {
 
     ansi_keys *keys = make_ansi_keys();
 
-    uint32_t t = 0;
-
     player_state s;
     reset(&s, false);
 
@@ -1144,7 +1144,7 @@ int main() {
         if (s.dx != 0) s.dy = 0;
 
         // Update every 4 frames
-        if (++t % 4 == 0) {
+        if (++s.t % 4 == 0) {
             tick_tiles(&s);
         }
         update_particles();
