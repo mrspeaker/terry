@@ -231,20 +231,25 @@ typedef struct {
 } tile;
 
 typedef struct {
-    uint8_t x;
-    uint8_t y;
+    uint16_t x;
+    uint16_t y;
     int8_t dx;
     int8_t dy;
     int8_t life;
 } particle;
 
-#define MAX_PARTICLES 10
+#define MAX_PARTICLES 100
 particle ps[MAX_PARTICLES] = {0};
 
-void render_particles() {
+void render_particles(player_state *s) {
+    uint16_t x = min(TILE_COLS - SCR_TW, max(0, s->x - (SCR_TW / 2))) * px_per_tile;
+    uint16_t y = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2))) * px_per_tile;
+
     for (uint32_t i = 0; i < MAX_PARTICLES; i++) {
         //if (ps[i].life <= 0) continue;
-        uint8_t *cur = &(pixels[ps[i].y][ps[i].x]);
+        if (ps[i].x - x < 0 || ps[i].x - x >= PIX_W) continue;
+        if (ps[i].y - y < 0 || ps[i].y - y >= PIX_H) continue;
+        uint8_t *cur = &(pixels[ps[i].y - y][ps[i].x - x]);
         *cur = 32;
     }
 }
@@ -1044,6 +1049,24 @@ void resize() {
     bg_fill();
 }
 
+void init_particles() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        ps[i].x = rand() % (TILE_COLS * px_per_tile);
+        ps[i].y = rand() % (TILE_ROWS * px_per_tile);
+    }
+}
+
+void update_particles() {
+    for (int i = 0; i < MAX_PARTICLES; i++) {
+        if (rand() % 10 == 0) {
+            ps[i].x += (rand() % 3) - 1;
+        }
+        if (rand() % 10 == 0) {
+            ps[i].y += (rand() % 3) - 1;
+        }
+    }
+}
+
 void reset(player_state *s, bool rando) {
     s->x = 2;
     s->y = 2;
@@ -1055,6 +1078,8 @@ void reset(player_state *s, bool rando) {
     }
     s->cam_x = s->x * px_per_tile;
     s->cam_y = s->y * px_per_tile;
+
+    init_particles();
 }
 
 int main() {
@@ -1073,6 +1098,7 @@ int main() {
 
     player_state s;
     reset(&s, false);
+
     bool running = true;
 
     while(running){
@@ -1119,8 +1145,9 @@ int main() {
         if (++t % 4 == 0) {
             tick_tiles(&s);
         }
+        update_particles();
         render_tiles_to_pixels(&s, false);
-        render_particles();
+        render_particles(&s);
         render_pixels();
 
         set_bg(C_BLACK);
