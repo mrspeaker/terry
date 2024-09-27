@@ -253,16 +253,9 @@ void init_particles() {
 
 void update_particles() {
     for (int i = 0; i < MAX_PARTICLES; i++) {
-        if (ps[i].life == -1) {
-            ps[i].x += (rand() % 3) - 1;
-            ps[i].y += (rand() % 3) - 1;
-        } else {
-            ps[i].y -= 1;
-            if (ps[i].life--==0) {
-                ps[i].x = rand() % (TILE_COLS * px_per_tile);
-                ps[i].y = rand() % (TILE_ROWS * px_per_tile);
-            }
-        }
+        if (ps[i].life == -1) continue;
+        ps[i].y -= 1;
+        ps[i].life--;
     }
 }
 
@@ -270,8 +263,8 @@ void set_particles(uint32_t x, uint32_t y, uint8_t num) {
     for (int i = 0; i < MAX_PARTICLES; i++) {
         if (ps[i].life == -1) {
             ps[i].life = 10;
-            ps[i].x = x + (rand() % 5) - 2;
-            ps[i].y = y + (rand() % 5) - 2;
+            ps[i].x = x + (rand() % 7) - 3;
+            ps[i].y = y + (rand() % 7) - 3;
             if(--num <= 0) {
                 return;
             }
@@ -284,7 +277,7 @@ void render_particles(player_state *s) {
     uint16_t y = min(TILE_ROWS - SCR_TH, max(0, s->y - (SCR_TH / 2))) * px_per_tile;
 
     for (uint32_t i = 0; i < MAX_PARTICLES; i++) {
-        //if (ps[i].life <= 0) continue;
+        if (ps[i].life <= 0) continue;
         if (ps[i].x - x < 0 || ps[i].x - x >= PIX_W) continue;
         if (ps[i].y - y < 0 || ps[i].y - y >= PIX_H) continue;
         uint8_t *cur = &(pixels[ps[i].y - y][ps[i].x - x]);
@@ -1168,7 +1161,7 @@ int main() {
         if (++s.t % 4 == 0) {
             tick_tiles(&s);
             if (s.got_diamond) {
-                set_particles(s.x * px_per_tile + 1, s.y * px_per_tile + 1, 10);
+                set_particles(s.x * px_per_tile + 1, s.y * px_per_tile + 1, 20);
             }
         }
         update_particles();
