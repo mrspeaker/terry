@@ -109,7 +109,8 @@ int main() {
     if (check_ansi_keys_enabled(keys)) {
         running = true;
     } else {
-        printf("NO KEYS\n");
+        printf("NO KEY UPs! (needs protocol extention)\n");
+        running = true;
     }
 
     int t = 0;
